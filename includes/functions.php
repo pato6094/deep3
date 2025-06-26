@@ -20,7 +20,9 @@ function generate_deeplink($url) {
         // Gestisce i post con parametri aggiuntivi come img_index
         if ($parts[0] === 'p' && isset($parts[1])) {
             $postId = $parts[1];
-            $deeplink = "instagram://media?id=" . $postId;
+            
+            // NUOVO FORMATO: Usa il formato instagram://post invece di instagram://media
+            $deeplink = "instagram://post?id=" . $postId;
             
             // Aggiungi parametri dalla query string se presenti
             $query = parse_url($url, PHP_URL_QUERY);
@@ -36,6 +38,14 @@ function generate_deeplink($url) {
                 if (isset($params['igsh'])) {
                     $deeplink .= "&igsh=" . $params['igsh'];
                 }
+                
+                // Supporta utm parameters
+                if (isset($params['utm_source'])) {
+                    $deeplink .= "&utm_source=" . $params['utm_source'];
+                }
+                if (isset($params['utm_medium'])) {
+                    $deeplink .= "&utm_medium=" . $params['utm_medium'];
+                }
             }
             
             return $deeplink;
@@ -43,7 +53,9 @@ function generate_deeplink($url) {
         // Gestisce i reel con parametri aggiuntivi
         elseif ($parts[0] === 'reel' && isset($parts[1])) {
             $reelId = $parts[1];
-            $deeplink = "instagram://reel?id=" . $reelId;
+            
+            // NUOVO FORMATO: Usa il formato instagram://reel più specifico
+            $deeplink = "instagram://reel?media_id=" . $reelId;
             
             // Aggiungi parametri dalla query string se presenti
             $query = parse_url($url, PHP_URL_QUERY);
@@ -62,6 +74,19 @@ function generate_deeplink($url) {
                 if (isset($params['utm_medium'])) {
                     $deeplink .= "&utm_medium=" . $params['utm_medium'];
                 }
+            }
+            
+            return $deeplink;
+        }
+        // Gestisce le stories (nuovo supporto)
+        elseif ($parts[0] === 'stories' && isset($parts[1])) {
+            $username = $parts[1];
+            $deeplink = "instagram://story-camera?entrypoint=story_camera";
+            
+            // Se c'è uno story ID specifico
+            if (isset($parts[2])) {
+                $storyId = $parts[2];
+                $deeplink = "instagram://story?story_id=" . $storyId . "&username=" . $username;
             }
             
             return $deeplink;
