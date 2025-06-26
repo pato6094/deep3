@@ -523,6 +523,61 @@ function generate_deeplink_url($link) {
             margin-bottom: 0.25rem;
             line-height: 1.3;
         }
+
+        /* ANIMAZIONI PER ELIMINAZIONE */
+        .row-removing {
+            opacity: 0.5;
+            transform: scale(0.95);
+            transition: all 0.3s ease;
+        }
+
+        .row-removed {
+            opacity: 0;
+            transform: translateX(-100%);
+            transition: all 0.5s ease;
+        }
+
+        /* NOTIFICHE TOAST */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(40, 167, 69, 0.95);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .toast.error {
+            background: rgba(220, 53, 69, 0.95);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -675,9 +730,9 @@ function generate_deeplink_url($link) {
                                 <th>Azioni</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="top-deeplinks-table">
                             <?php foreach ($top_deeplinks as $index => $link): ?>
-                            <tr>
+                            <tr id="top-deeplink-row-<?= $link['id'] ?>" data-deeplink-id="<?= $link['id'] ?>">
                                 <td>
                                     <div class="performance-rank" style="position: static; width: 30px; height: 30px; font-size: 0.8rem;">
                                         #<?= $index + 1 ?>
@@ -763,13 +818,13 @@ function generate_deeplink_url($link) {
                                 <th>Azioni</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="recent-deeplinks-table">
                             <?php foreach ($recent_deeplinks as $link): ?>
                             <?php 
                                 $is_expired = is_deeplink_expired($link['created_at'], $has_subscription);
                                 $days_remaining = get_days_until_expiry($link['created_at'], $has_subscription);
                             ?>
-                            <tr id="deeplink-row-<?= $link['id'] ?>">
+                            <tr id="recent-deeplink-row-<?= $link['id'] ?>" data-deeplink-id="<?= $link['id'] ?>">
                                 <td>
                                     <div class="deeplink-title">
                                         <?= htmlspecialchars($link['title'] ?? '') ?>
@@ -918,6 +973,20 @@ function generate_deeplink_url($link) {
             });
         }
 
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
         function deleteDeeplink(id, button) {
             if (!confirm('Sei sicuro di voler eliminare questo deeplink? Questa azione non può essere annullata.')) {
                 return;
@@ -926,6 +995,14 @@ function generate_deeplink_url($link) {
             const originalText = button.textContent;
             button.textContent = 'Eliminando...';
             button.disabled = true;
+
+            // Trova tutte le righe con questo deeplink ID in entrambe le tabelle
+            const recentRow = document.getElementById('recent-deeplink-row-' + id);
+            const topRow = document.getElementById('top-deeplink-row-' + id);
+
+            // Aggiungi classe di animazione per l'eliminazione
+            if (recentRow) recentRow.classList.add('row-removing');
+            if (topRow) topRow.classList.add('row-removing');
 
             fetch('delete_deeplink.php', {
                 method: 'POST',
@@ -939,40 +1016,71 @@ function generate_deeplink_url($link) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Rimuovi la riga dalla tabella con animazione
-                    const row = document.getElementById('deeplink-row-' + id);
-                    if (row) {
-                        row.style.transition = 'opacity 0.3s ease';
-                        row.style.opacity = '0';
+                    // Rimuovi la riga dalla tabella recenti con animazione
+                    if (recentRow) {
+                        recentRow.classList.add('row-removed');
                         setTimeout(() => {
-                            row.remove();
-                        }, 300);
+                            recentRow.remove();
+                        }, 500);
                     }
                     
-                    // Mostra messaggio di successo
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-success';
-                    alert.textContent = 'Deeplink eliminato con successo!';
-                    alert.style.position = 'fixed';
-                    alert.style.top = '20px';
-                    alert.style.right = '20px';
-                    alert.style.zIndex = '9999';
-                    document.body.appendChild(alert);
+                    // Rimuovi la riga dalla tabella top deeplinks con animazione
+                    if (topRow) {
+                        topRow.classList.add('row-removed');
+                        setTimeout(() => {
+                            topRow.remove();
+                            // Riorganizza i numeri di posizione nella tabella top
+                            reorganizeTopPositions();
+                        }, 500);
+                    }
                     
+                    // Mostra notifica di successo
+                    showToast('Deeplink eliminato con successo!', 'success');
+                    
+                    // Se non ci sono più righe nella tabella top, nascondi la sezione
                     setTimeout(() => {
-                        alert.remove();
-                    }, 3000);
+                        const topTable = document.getElementById('top-deeplinks-table');
+                        if (topTable && topTable.children.length === 0) {
+                            const topSection = topTable.closest('.card');
+                            if (topSection) {
+                                topSection.style.display = 'none';
+                            }
+                        }
+                    }, 600);
+                    
                 } else {
-                    alert('Errore: ' + data.message);
+                    // Rimuovi le classi di animazione in caso di errore
+                    if (recentRow) recentRow.classList.remove('row-removing');
+                    if (topRow) topRow.classList.remove('row-removing');
+                    
+                    showToast('Errore: ' + data.message, 'error');
                     button.textContent = originalText;
                     button.disabled = false;
                 }
             })
             .catch(error => {
                 console.error('Errore:', error);
-                alert('Errore durante l\'eliminazione del deeplink');
+                
+                // Rimuovi le classi di animazione in caso di errore
+                if (recentRow) recentRow.classList.remove('row-removing');
+                if (topRow) topRow.classList.remove('row-removing');
+                
+                showToast('Errore durante l\'eliminazione del deeplink', 'error');
                 button.textContent = originalText;
                 button.disabled = false;
+            });
+        }
+
+        function reorganizeTopPositions() {
+            const topTable = document.getElementById('top-deeplinks-table');
+            if (!topTable) return;
+            
+            const rows = topTable.querySelectorAll('tr');
+            rows.forEach((row, index) => {
+                const positionElement = row.querySelector('.performance-rank');
+                if (positionElement) {
+                    positionElement.textContent = '#' + (index + 1);
+                }
             });
         }
 
