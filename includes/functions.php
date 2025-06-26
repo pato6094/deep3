@@ -50,16 +50,117 @@ function is_admin($user_id, $pdo) {
     return $user && $user['is_admin'] == 1;
 }
 
-// Funzione per verificare se l'utente ha un abbonamento attivo
+// Funzione per verificare se l'utente ha un abbonamento attivo (AGGIORNATA)
 function has_active_subscription($pdo, $user_id) {
-    $stmt = $pdo->prepare("SELECT subscription_status, subscription_end FROM users WHERE id = :user_id");
+    // Prima controlla se ci sono abbonamenti scaduti da processare
+    check_expired_subscriptions($pdo);
+    
+    $stmt = $pdo->prepare("
+        SELECT subscription_status, subscription_end, next_billing_date, grace_period_until 
+        FROM users 
+        WHERE id = :user_id
+    ");
     $stmt->execute([':user_id' => $user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$user) return false;
     
+    // Se è in periodo di grazia, considera ancora attivo
+    if ($user['grace_period_until'] && strtotime($user['grace_period_until']) > time()) {
+        return true;
+    }
+    
     return $user['subscription_status'] === 'active' && 
            ($user['subscription_end'] === null || strtotime($user['subscription_end']) > time());
+}
+
+// Funzione per controllare abbonamenti scaduti (NUOVA)
+function check_expired_subscriptions($pdo) {
+    try {
+        // Trova utenti con abbonamento attivo ma che hanno superato la next_billing_date
+        $stmt = $pdo->prepare("
+            SELECT id, subscription_id, next_billing_date, last_status_check
+            FROM users 
+            WHERE subscription_status = 'active' 
+            AND next_billing_date IS NOT NULL 
+            AND next_billing_date < NOW()
+            AND (last_status_check IS NULL OR last_status_check < DATE_SUB(NOW(), INTERVAL 1 DAY))
+        ");
+        $stmt->execute();
+        $expired_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($expired_users as $user) {
+            // Imposta periodo di grazia di 3 giorni
+            $grace_period = date('Y-m-d H:i:s', strtotime('+3 days'));
+            
+            $update_stmt = $pdo->prepare("
+                UPDATE users 
+                SET grace_period_until = :grace_period,
+                    last_status_check = NOW()
+                WHERE id = :user_id
+            ");
+            $update_stmt->execute([
+                ':grace_period' => $grace_period,
+                ':user_id' => $user['id']
+            ]);
+            
+            // Log per debug
+            error_log("Utente {$user['id']} in periodo di grazia fino al $grace_period");
+        }
+        
+        // Trova utenti il cui periodo di grazia è scaduto
+        $stmt = $pdo->prepare("
+            SELECT id 
+            FROM users 
+            WHERE subscription_status = 'active' 
+            AND grace_period_until IS NOT NULL 
+            AND grace_period_until < NOW()
+        ");
+        $stmt->execute();
+        $grace_expired_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($grace_expired_users as $user) {
+            // Downgrade a piano gratuito
+            $downgrade_stmt = $pdo->prepare("
+                UPDATE users 
+                SET subscription_status = 'expired',
+                    grace_period_until = NULL,
+                    next_billing_date = NULL
+                WHERE id = :user_id
+            ");
+            $downgrade_stmt->execute([':user_id' => $user['id']]);
+            
+            // Log per debug
+            error_log("Utente {$user['id']} downgraded a piano gratuito per mancato rinnovo");
+        }
+        
+    } catch (Exception $e) {
+        error_log("Errore controllo abbonamenti scaduti: " . $e->getMessage());
+    }
+}
+
+// Funzione per aggiornare la data di rinnovo dopo un pagamento (NUOVA)
+function update_billing_date($pdo, $user_id) {
+    try {
+        $next_billing = date('Y-m-d H:i:s', strtotime('+1 month'));
+        
+        $stmt = $pdo->prepare("
+            UPDATE users 
+            SET next_billing_date = :next_billing,
+                grace_period_until = NULL,
+                last_status_check = NOW(),
+                subscription_status = 'active'
+            WHERE id = :user_id
+        ");
+        
+        return $stmt->execute([
+            ':next_billing' => $next_billing,
+            ':user_id' => $user_id
+        ]);
+    } catch (Exception $e) {
+        error_log("Errore aggiornamento data billing: " . $e->getMessage());
+        return false;
+    }
 }
 
 // Funzione per contare i deeplink dell'utente nel mese corrente
@@ -174,20 +275,33 @@ function get_monthly_performance($pdo, $user_id) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Funzioni Admin
+// Funzioni Admin (AGGIORNATE)
 function get_admin_stats($pdo) {
+    // Controlla abbonamenti scaduti prima di calcolare le statistiche
+    check_expired_subscriptions($pdo);
+    
     $stats = [];
     
     // Utenti totali
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
     $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
-    // Utenti premium
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE subscription_status = 'active'");
+    // Utenti premium (inclusi quelli in periodo di grazia)
+    $stmt = $pdo->query("
+        SELECT COUNT(*) as total 
+        FROM users 
+        WHERE subscription_status = 'active' 
+        OR (grace_period_until IS NOT NULL AND grace_period_until > NOW())
+    ");
     $stats['premium_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
     // Utenti gratuiti
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE subscription_status = 'free'");
+    $stmt = $pdo->query("
+        SELECT COUNT(*) as total 
+        FROM users 
+        WHERE subscription_status IN ('free', 'expired', 'cancelled')
+        AND (grace_period_until IS NULL OR grace_period_until <= NOW())
+    ");
     $stats['free_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
     // Deeplink totali

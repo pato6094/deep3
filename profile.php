@@ -13,7 +13,8 @@ $error = '';
 
 // Recupera informazioni utente
 $stmt = $pdo->prepare("
-    SELECT name, email, subscription_status, subscription_start, subscription_end, subscription_id, created_at 
+    SELECT name, email, subscription_status, subscription_start, subscription_end, 
+           subscription_id, created_at, next_billing_date, grace_period_until
     FROM users 
     WHERE id = :user_id
 ");
@@ -26,6 +27,7 @@ if (!$user) {
 }
 
 $has_subscription = has_active_subscription($pdo, $user_id);
+$is_in_grace_period = $user['grace_period_until'] && strtotime($user['grace_period_until']) > time();
 
 // Gestione cambio password
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
@@ -109,6 +111,10 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             border-color: #28a745;
             background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
         }
+        .subscription-card.grace-period {
+            border-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
         .danger-zone {
             border: 2px solid #dc3545;
             border-radius: 15px;
@@ -152,6 +158,15 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             margin-top: 1rem;
             font-size: 0.9rem;
             color: #004085;
+        }
+        .grace-period-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #856404;
         }
     </style>
 </head>
@@ -205,24 +220,28 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                     <div class="stat-mini-label">Ultimi 30 giorni</div>
                 </div>
                 <div class="stat-mini">
-                    <div class="stat-mini-number"><?= $has_subscription ? 'PRO' : 'FREE' ?></div>
+                    <div class="stat-mini-number">
+                        <?= $has_subscription ? ($is_in_grace_period ? 'GRACE' : 'PRO') : 'FREE' ?>
+                    </div>
                     <div class="stat-mini-label">Piano Attuale</div>
                 </div>
             </div>
 
             <!-- Stato Abbonamento -->
-            <div class="subscription-card <?= $has_subscription ? 'premium' : '' ?>">
+            <div class="subscription-card <?= $has_subscription ? ($is_in_grace_period ? 'grace-period' : 'premium') : '' ?>">
                 <h2>📋 Stato Abbonamento</h2>
                 
-                <?php if ($has_subscription): ?>
+                <?php if ($has_subscription && !$is_in_grace_period): ?>
                     <div style="margin: 1rem 0;">
                         <span style="background: #28a745; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">
                             ✓ Premium Attivo
                         </span>
                     </div>
                     <p style="color: #155724; margin-bottom: 1rem;">
-                        Il tuo abbonamento Premium è attivo e si rinnoverà automaticamente il 
-                        <strong><?= date('d/m/Y', strtotime($user['subscription_end'])) ?></strong>.
+                        Il tuo abbonamento Premium è attivo.
+                        <?php if ($user['next_billing_date']): ?>
+                            Prossimo rinnovo previsto: <strong><?= date('d/m/Y', strtotime($user['next_billing_date'])) ?></strong>
+                        <?php endif; ?>
                     </p>
                     <ul style="color: #155724; margin-bottom: 1.5rem;">
                         <li>✓ Deeplink illimitati</li>
@@ -231,22 +250,32 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                         <li>✓ Link permanenti</li>
                     </ul>
                     
-                    <div class="paypal-info">
-                        <strong>💳 Gestione Abbonamento:</strong> Per modificare o cancellare il tuo abbonamento, 
-                        accedi al tuo account PayPal e gestisci i pagamenti automatici dalla sezione "Impostazioni".
-                        <br><br>
-                        <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" style="color: #004085; text-decoration: underline;">
-                            Gestisci abbonamenti su PayPal →
+                <?php elseif ($is_in_grace_period): ?>
+                    <div style="margin: 1rem 0;">
+                        <span style="background: #ffc107; color: #212529; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">
+                            ⚠ Periodo di Grazia
+                        </span>
+                    </div>
+                    <p style="color: #856404; margin-bottom: 1rem;">
+                        Il tuo abbonamento non è stato rinnovato automaticamente. 
+                        Hai accesso alle funzionalità Premium fino al <strong><?= date('d/m/Y H:i', strtotime($user['grace_period_until'])) ?></strong>.
+                    </p>
+                    
+                    <div class="grace-period-warning">
+                        <strong>⏰ Azione Richiesta:</strong> 
+                        Il tuo abbonamento PayPal potrebbe essere stato cancellato o il pagamento non è andato a buon fine. 
+                        Controlla il tuo account PayPal o rinnova l'abbonamento per continuare a usare le funzionalità Premium.
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <a href="pricing.php" class="btn btn-primary" style="margin-right: 1rem;">
+                            Rinnova Abbonamento
+                        </a>
+                        <a href="payment_success.php" class="btn btn-secondary">
+                            Ho già pagato
                         </a>
                     </div>
                     
-                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
-                        <small style="color: #666;">
-                            <strong>ID Abbonamento:</strong> <?= htmlspecialchars($user['subscription_id']) ?><br>
-                            <strong>Inizio:</strong> <?= date('d/m/Y', strtotime($user['subscription_start'])) ?><br>
-                            <strong>Scadenza:</strong> <?= date('d/m/Y', strtotime($user['subscription_end'])) ?>
-                        </small>
-                    </div>
                 <?php else: ?>
                     <div style="margin: 1rem 0;">
                         <span style="background: #6c757d; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">
@@ -265,16 +294,31 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                     <a href="pricing.php" class="btn btn-success">
                         🚀 Diventa Premium
                     </a>
+                <?php endif; ?>
+                
+                <?php if ($user['subscription_id']): ?>
+                    <div class="paypal-info">
+                        <strong>💳 Gestione Abbonamento:</strong> Per modificare o cancellare il tuo abbonamento, 
+                        accedi al tuo account PayPal e gestisci i pagamenti automatici dalla sezione "Impostazioni".
+                        <br><br>
+                        <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" style="color: #004085; text-decoration: underline;">
+                            Gestisci abbonamenti su PayPal →
+                        </a>
+                    </div>
                     
-                    <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-                        <h4 style="color: #333; margin-bottom: 0.5rem;">Vantaggi del Piano Premium:</h4>
-                        <ul style="color: #666; margin: 0;">
-                            <li>✓ Deeplink illimitati ogni mese</li>
-                            <li>✓ URL personalizzati (es: tuosito.com/mio-link)</li>
-                            <li>✓ Link permanenti che non scadono mai</li>
-                            <li>✓ Statistiche dettagliate sui click</li>
-                            <li>✓ Supporto prioritario</li>
-                        </ul>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+                        <small style="color: #666;">
+                            <strong>ID Abbonamento:</strong> <?= htmlspecialchars($user['subscription_id']) ?><br>
+                            <?php if ($user['subscription_start']): ?>
+                                <strong>Inizio:</strong> <?= date('d/m/Y', strtotime($user['subscription_start'])) ?><br>
+                            <?php endif; ?>
+                            <?php if ($user['subscription_end']): ?>
+                                <strong>Scadenza attuale:</strong> <?= date('d/m/Y', strtotime($user['subscription_end'])) ?><br>
+                            <?php endif; ?>
+                            <?php if ($user['next_billing_date']): ?>
+                                <strong>Prossimo rinnovo:</strong> <?= date('d/m/Y', strtotime($user['next_billing_date'])) ?>
+                            <?php endif; ?>
+                        </small>
                     </div>
                 <?php endif; ?>
             </div>

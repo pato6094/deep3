@@ -48,6 +48,7 @@ require_once 'includes/functions.php';
                         <li>Supporto per tutti i social</li>
                         <li>Dashboard personale</li>
                         <li>Cronologia deeplink</li>
+                        <li>Link scadono dopo 5 giorni</li>
                     </ul>
                     
                     <?php if (!is_logged_in()): ?>
@@ -69,10 +70,11 @@ require_once 'includes/functions.php';
                     
                     <ul class="features">
                         <li>Deeplink illimitati</li>
-                        <li>Supporto prioritario</li>
+                        <li>Link permanenti (non scadono mai)</li>
+                        <li>URL personalizzati</li>
                         <li>Analytics avanzate</li>
+                        <li>Supporto prioritario</li>
                         <li>API personalizzata</li>
-                        <li>Deeplink personalizzati</li>
                         <li>Nessuna pubblicità</li>
                     </ul>
                     
@@ -109,10 +111,17 @@ require_once 'includes/functions.php';
                         Aggiungiamo costantemente nuove piattaforme.
                     </p>
                     
-                    <h3 style="color: #333; margin-bottom: 1rem;">Posso cancellare l'abbonamento?</h3>
+                    <h3 style="color: #333; margin-bottom: 1rem;">Cosa succede se cancello l'abbonamento?</h3>
+                    <p style="color: #666; margin-bottom: 2rem;">
+                        Se cancelli l'abbonamento da PayPal, continuerai ad avere accesso alle funzionalità Premium 
+                        fino alla fine del periodo già pagato. Dopo 3 giorni dalla scadenza, il tuo account 
+                        tornerà automaticamente al piano gratuito.
+                    </p>
+                    
+                    <h3 style="color: #333; margin-bottom: 1rem;">Come gestisco il mio abbonamento?</h3>
                     <p style="color: #666;">
-                        Sì, puoi cancellare l'abbonamento in qualsiasi momento dal tuo account PayPal. 
-                        Continuerai ad avere accesso alle funzionalità Premium fino alla fine del periodo pagato.
+                        Puoi gestire il tuo abbonamento direttamente dal tuo account PayPal. 
+                        Vai su PayPal → Impostazioni → Pagamenti automatici per modificare o cancellare l'abbonamento.
                     </p>
                 </div>
             </div>
@@ -149,12 +158,20 @@ require_once 'includes/functions.php';
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Abbonamento attivato con successo!');
-                        window.location.reload();
+                        // Reindirizza alla pagina di successo
+                        window.location.href = 'payment_success.php';
                     } else {
-                        alert('Errore nell\'attivazione dell\'abbonamento.');
+                        alert('Errore nell\'attivazione dell\'abbonamento: ' + data.message);
                     }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    alert('Errore di comunicazione con il server');
                 });
+            },
+            onError: function(err) {
+                console.error('Errore PayPal:', err);
+                alert('Errore durante il pagamento. Riprova più tardi.');
             }
         }).render('#paypal-button-container-P-7RV70051U1318953DNBNLR3Q');
     </script>
