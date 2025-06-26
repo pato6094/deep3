@@ -173,6 +173,19 @@ function generate_deeplink_url($link) {
             min-width: 800px; /* Larghezza minima per evitare compressione eccessiva */
         }
         
+        /* SPAZIATURA MIGLIORATA TRA COLONNE URL E CLICK */
+        .stats-table th:nth-child(3), /* Colonna URL Originale */
+        .stats-table td:nth-child(3) {
+            padding-right: 2rem; /* Aumentato padding destro */
+            max-width: 280px; /* Larghezza massima controllata */
+        }
+        
+        .stats-table th:nth-child(4), /* Colonna Click */
+        .stats-table td:nth-child(4) {
+            padding-left: 2rem; /* Aumentato padding sinistro */
+            min-width: 100px; /* Larghezza minima garantita */
+        }
+        
         /* AZIONI TABELLA - BOTTONI SEMPRE SULLA STESSA LINEA */
         .table-actions {
             display: flex;
@@ -198,6 +211,51 @@ function generate_deeplink_url($link) {
             min-width: 60px;
         }
         
+        /* URL CELL CON CONTROLLO OVERFLOW */
+        .url-cell {
+            max-width: 280px;
+            overflow: hidden;
+        }
+        
+        .url-text {
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.3;
+        }
+        
+        .url-domain {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* CLICK BADGE CON SPAZIATURA */
+        .click-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px; /* Aumentata larghezza minima */
+            height: 32px; /* Aumentata altezza */
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 16px; /* Più arrotondato */
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0 auto; /* Centrato nella cella */
+        }
+        
+        .click-badge.active {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
         /* MIGLIORAMENTI RESPONSIVE */
         @media (max-width: 1200px) {
             .stats-table {
@@ -206,6 +264,17 @@ function generate_deeplink_url($link) {
             
             .table-actions {
                 min-width: 180px;
+            }
+            
+            .stats-table th:nth-child(3),
+            .stats-table td:nth-child(3) {
+                padding-right: 1.5rem;
+                max-width: 250px;
+            }
+            
+            .stats-table th:nth-child(4),
+            .stats-table td:nth-child(4) {
+                padding-left: 1.5rem;
             }
         }
         
@@ -220,6 +289,18 @@ function generate_deeplink_url($link) {
                 padding: 0.75rem 0.5rem;
             }
             
+            .stats-table th:nth-child(3),
+            .stats-table td:nth-child(3) {
+                padding-right: 1rem;
+                max-width: 200px;
+            }
+            
+            .stats-table th:nth-child(4),
+            .stats-table td:nth-child(4) {
+                padding-left: 1rem;
+                min-width: 80px;
+            }
+            
             .table-actions {
                 min-width: 160px;
                 gap: 0.25rem;
@@ -232,11 +313,17 @@ function generate_deeplink_url($link) {
             }
             
             .url-cell {
-                max-width: 200px;
+                max-width: 180px;
             }
             
             .deeplink-title {
                 font-size: 0.875rem;
+            }
+            
+            .click-badge {
+                min-width: 40px;
+                height: 28px;
+                font-size: 0.75rem;
             }
         }
         
@@ -244,6 +331,18 @@ function generate_deeplink_url($link) {
             .stats-table {
                 min-width: 600px;
                 font-size: 0.8rem;
+            }
+            
+            .stats-table th:nth-child(3),
+            .stats-table td:nth-child(3) {
+                padding-right: 0.75rem;
+                max-width: 150px;
+            }
+            
+            .stats-table th:nth-child(4),
+            .stats-table td:nth-child(4) {
+                padding-left: 0.75rem;
+                min-width: 70px;
             }
             
             .table-actions {
@@ -256,6 +355,12 @@ function generate_deeplink_url($link) {
                 width: 100%;
                 padding: 0.25rem;
                 font-size: 0.65rem;
+            }
+            
+            .click-badge {
+                min-width: 35px;
+                height: 24px;
+                font-size: 0.7rem;
             }
         }
         
@@ -408,6 +513,14 @@ function generate_deeplink_url($link) {
                 font-size: 0.75rem;
                 margin-bottom: 1rem;
             }
+        }
+        
+        /* DEEPLINK TITLE */
+        .deeplink-title {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+            line-height: 1.3;
         }
     </style>
 </head>
@@ -580,7 +693,7 @@ function generate_deeplink_url($link) {
                                 <td>
                                     <div class="url-cell">
                                         <div class="url-text">
-                                            <?= htmlspecialchars(substr($link['original_url'], 0, 60)) ?><?= strlen($link['original_url']) > 60 ? '...' : '' ?>
+                                            <?= htmlspecialchars(substr($link['original_url'], 0, 50)) ?><?= strlen($link['original_url']) > 50 ? '...' : '' ?>
                                         </div>
                                         <div class="url-domain">
                                             <?= parse_url($link['original_url'], PHP_URL_HOST) ?>
@@ -667,7 +780,7 @@ function generate_deeplink_url($link) {
                                 <td>
                                     <div class="url-cell">
                                         <div class="url-text">
-                                            <?= htmlspecialchars(substr($link['original_url'], 0, 60)) ?><?= strlen($link['original_url']) > 60 ? '...' : '' ?>
+                                            <?= htmlspecialchars(substr($link['original_url'], 0, 50)) ?><?= strlen($link['original_url']) > 50 ? '...' : '' ?>
                                         </div>
                                         <div class="url-domain">
                                             <?= parse_url($link['original_url'], PHP_URL_HOST) ?>
