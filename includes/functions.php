@@ -56,7 +56,7 @@ function has_active_subscription($pdo, $user_id) {
     check_expired_subscriptions($pdo);
     
     $stmt = $pdo->prepare("
-        SELECT subscription_status, subscription_end, next_billing_date, grace_period_until 
+        SELECT subscription_status, subscription_end, next_billing_date, grace_period_until, cancellation_requested
         FROM users 
         WHERE id = :user_id
     ");
@@ -70,18 +70,51 @@ function has_active_subscription($pdo, $user_id) {
         return true;
     }
     
+    // Se ha richiesto la cancellazione, è ancora attivo fino alla scadenza
+    if ($user['cancellation_requested'] && $user['subscription_end'] && strtotime($user['subscription_end']) > time()) {
+        return true;
+    }
+    
     return $user['subscription_status'] === 'active' && 
            ($user['subscription_end'] === null || strtotime($user['subscription_end']) > time());
 }
 
-// Funzione per controllare abbonamenti scaduti (NUOVA)
+// Funzione per controllare abbonamenti scaduti (AGGIORNATA)
 function check_expired_subscriptions($pdo) {
     try {
-        // Trova utenti con abbonamento attivo ma che hanno superato la next_billing_date
+        // 1. Trova utenti con abbonamento attivo che hanno richiesto cancellazione e sono scaduti
+        $stmt = $pdo->prepare("
+            SELECT id, name, email
+            FROM users 
+            WHERE subscription_status = 'active' 
+            AND cancellation_requested = 1
+            AND subscription_end IS NOT NULL 
+            AND subscription_end < NOW()
+        ");
+        $stmt->execute();
+        $cancelled_expired_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($cancelled_expired_users as $user) {
+            // Downgrade a piano gratuito
+            $downgrade_stmt = $pdo->prepare("
+                UPDATE users 
+                SET subscription_status = 'cancelled',
+                    cancellation_requested = 0,
+                    next_billing_date = NULL,
+                    grace_period_until = NULL
+                WHERE id = :user_id
+            ");
+            $downgrade_stmt->execute([':user_id' => $user['id']]);
+            
+            error_log("Utente {$user['id']} ({$user['name']}) downgraded per cancellazione richiesta");
+        }
+        
+        // 2. Trova utenti con abbonamento attivo ma che hanno superato la next_billing_date (solo se NON hanno richiesto cancellazione)
         $stmt = $pdo->prepare("
             SELECT id, subscription_id, next_billing_date, last_status_check
             FROM users 
             WHERE subscription_status = 'active' 
+            AND cancellation_requested = 0
             AND next_billing_date IS NOT NULL 
             AND next_billing_date < NOW()
             AND (last_status_check IS NULL OR last_status_check < DATE_SUB(NOW(), INTERVAL 1 DAY))
@@ -104,15 +137,15 @@ function check_expired_subscriptions($pdo) {
                 ':user_id' => $user['id']
             ]);
             
-            // Log per debug
             error_log("Utente {$user['id']} in periodo di grazia fino al $grace_period");
         }
         
-        // Trova utenti il cui periodo di grazia è scaduto
+        // 3. Trova utenti il cui periodo di grazia è scaduto (solo se NON hanno richiesto cancellazione)
         $stmt = $pdo->prepare("
-            SELECT id 
+            SELECT id, name, email, subscription_id
             FROM users 
             WHERE subscription_status = 'active' 
+            AND cancellation_requested = 0
             AND grace_period_until IS NOT NULL 
             AND grace_period_until < NOW()
         ");
@@ -130,7 +163,6 @@ function check_expired_subscriptions($pdo) {
             ");
             $downgrade_stmt->execute([':user_id' => $user['id']]);
             
-            // Log per debug
             error_log("Utente {$user['id']} downgraded a piano gratuito per mancato rinnovo");
         }
         
@@ -139,7 +171,7 @@ function check_expired_subscriptions($pdo) {
     }
 }
 
-// Funzione per aggiornare la data di rinnovo dopo un pagamento (NUOVA)
+// Funzione per aggiornare la data di rinnovo dopo un pagamento (AGGIORNATA)
 function update_billing_date($pdo, $user_id) {
     try {
         $next_billing = date('Y-m-d H:i:s', strtotime('+1 month'));
@@ -149,7 +181,8 @@ function update_billing_date($pdo, $user_id) {
             SET next_billing_date = :next_billing,
                 grace_period_until = NULL,
                 last_status_check = NOW(),
-                subscription_status = 'active'
+                subscription_status = 'active',
+                cancellation_requested = 0
             WHERE id = :user_id
         ");
         
@@ -286,11 +319,12 @@ function get_admin_stats($pdo) {
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
     $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
-    // Utenti premium (inclusi quelli in periodo di grazia)
+    // Utenti premium (inclusi quelli in periodo di grazia e con cancellazione richiesta ma ancora attivi)
     $stmt = $pdo->query("
         SELECT COUNT(*) as total 
         FROM users 
-        WHERE subscription_status = 'active' 
+        WHERE (subscription_status = 'active' AND cancellation_requested = 0)
+        OR (subscription_status = 'active' AND cancellation_requested = 1 AND subscription_end > NOW())
         OR (grace_period_until IS NOT NULL AND grace_period_until > NOW())
     ");
     $stats['premium_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
@@ -301,6 +335,7 @@ function get_admin_stats($pdo) {
         FROM users 
         WHERE subscription_status IN ('free', 'expired', 'cancelled')
         AND (grace_period_until IS NULL OR grace_period_until <= NOW())
+        AND NOT (subscription_status = 'active' AND cancellation_requested = 1 AND subscription_end > NOW())
     ");
     $stats['free_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     

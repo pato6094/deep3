@@ -14,7 +14,7 @@ $error = '';
 // Recupera informazioni utente
 $stmt = $pdo->prepare("
     SELECT name, email, subscription_status, subscription_start, subscription_end, 
-           subscription_id, created_at, next_billing_date, grace_period_until
+           subscription_id, created_at, next_billing_date, grace_period_until, cancellation_requested
     FROM users 
     WHERE id = :user_id
 ");
@@ -28,6 +28,32 @@ if (!$user) {
 
 $has_subscription = has_active_subscription($pdo, $user_id);
 $is_in_grace_period = $user['grace_period_until'] && strtotime($user['grace_period_until']) > time();
+
+// Gestione richiesta cancellazione abbonamento
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_subscription'])) {
+    if ($user['subscription_id'] && $has_subscription) {
+        try {
+            // Marca l'abbonamento per la cancellazione alla scadenza
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET cancellation_requested = 1
+                WHERE id = :user_id
+            ");
+            
+            if ($stmt->execute([':user_id' => $user_id])) {
+                // Reindirizza alla pagina di cancellazione PayPal
+                header('Location: cancel_subscription_guide.php');
+                exit;
+            } else {
+                $error = 'Errore durante la richiesta di cancellazione.';
+            }
+        } catch (Exception $e) {
+            $error = 'Errore: ' . $e->getMessage();
+        }
+    } else {
+        $error = 'Nessun abbonamento attivo trovato.';
+    }
+}
 
 // Gestione cambio password
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
@@ -115,6 +141,10 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             border-color: #ffc107;
             background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
         }
+        .subscription-card.cancellation-pending {
+            border-color: #fd7e14;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
         .danger-zone {
             border: 2px solid #dc3545;
             border-radius: 15px;
@@ -128,6 +158,14 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
         .btn-danger:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(220, 53, 69, 0.4);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #fd7e14 0%, #f39c12 100%);
+            color: white;
+        }
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(253, 126, 20, 0.4);
         }
         .stats-mini {
             display: grid;
@@ -160,6 +198,15 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
             color: #004085;
         }
         .grace-period-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #856404;
+        }
+        .cancellation-warning {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
             border-radius: 8px;
@@ -221,26 +268,26 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                 </div>
                 <div class="stat-mini">
                     <div class="stat-mini-number">
-                        <?= $has_subscription ? ($is_in_grace_period ? 'GRACE' : 'PRO') : 'FREE' ?>
+                        <?= $has_subscription ? ($is_in_grace_period ? 'GRACE' : ($user['cancellation_requested'] ? 'ENDING' : 'PRO')) : 'FREE' ?>
                     </div>
                     <div class="stat-mini-label">Piano Attuale</div>
                 </div>
             </div>
 
             <!-- Stato Abbonamento -->
-            <div class="subscription-card <?= $has_subscription ? ($is_in_grace_period ? 'grace-period' : 'premium') : '' ?>">
+            <div class="subscription-card <?= $has_subscription ? ($user['cancellation_requested'] ? 'cancellation-pending' : ($is_in_grace_period ? 'grace-period' : 'premium')) : '' ?>">
                 <h2>📋 Stato Abbonamento</h2>
                 
-                <?php if ($has_subscription && !$is_in_grace_period): ?>
+                <?php if ($has_subscription && !$is_in_grace_period && !$user['cancellation_requested']): ?>
                     <div style="margin: 1rem 0;">
                         <span style="background: #28a745; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">
                             ✓ Premium Attivo
                         </span>
                     </div>
                     <p style="color: #155724; margin-bottom: 1rem;">
-                        Il tuo abbonamento Premium è attivo.
+                        Il tuo abbonamento Premium è attivo e si rinnova automaticamente.
                         <?php if ($user['next_billing_date']): ?>
-                            Prossimo rinnovo previsto: <strong><?= date('d/m/Y', strtotime($user['next_billing_date'])) ?></strong>
+                            <br>Prossimo rinnovo previsto: <strong><?= date('d/m/Y', strtotime($user['next_billing_date'])) ?></strong>
                         <?php endif; ?>
                     </p>
                     <ul style="color: #155724; margin-bottom: 1.5rem;">
@@ -249,6 +296,42 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                         <li>✓ Statistiche avanzate</li>
                         <li>✓ Link permanenti</li>
                     </ul>
+                    
+                    <!-- BOTTONE ELIMINA ABBONAMENTO -->
+                    <form method="POST" style="margin-bottom: 1rem;">
+                        <button type="submit" name="cancel_subscription" class="btn btn-warning"
+                                onclick="return confirm('⚠️ ATTENZIONE: Vuoi davvero cancellare l\'abbonamento?\n\n• Continuerai ad avere accesso Premium fino alla scadenza del periodo già pagato\n• Dopo 1 mese esatto dalla sottoscrizione, l\'account tornerà FREE\n• Dovrai completare la cancellazione anche su PayPal\n\nConfermi la cancellazione?')">
+                            🗑️ Elimina Abbonamento
+                        </button>
+                    </form>
+                    
+                <?php elseif ($user['cancellation_requested'] && $has_subscription): ?>
+                    <div style="margin: 1rem 0;">
+                        <span style="background: #fd7e14; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">
+                            ⚠ Cancellazione Richiesta
+                        </span>
+                    </div>
+                    <p style="color: #856404; margin-bottom: 1rem;">
+                        Hai richiesto la cancellazione dell'abbonamento. 
+                        Continuerai ad avere accesso Premium fino al <strong><?= date('d/m/Y', strtotime($user['subscription_end'])) ?></strong>.
+                    </p>
+                    
+                    <div class="cancellation-warning">
+                        <strong>📋 Prossimi Passi:</strong><br>
+                        1. ✅ Cancellazione richiesta sul nostro sistema<br>
+                        2. ⏳ <strong>Completa la cancellazione su PayPal</strong> per evitare addebiti futuri<br>
+                        3. 🗓️ Il tuo account tornerà automaticamente al piano FREE il <?= date('d/m/Y', strtotime($user['subscription_end'])) ?>
+                        
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" 
+                               class="btn btn-primary" style="margin-right: 1rem;">
+                                Cancella su PayPal
+                            </a>
+                            <small style="display: block; margin-top: 0.5rem; color: #666;">
+                                Vai su PayPal → Impostazioni → Pagamenti automatici → Trova "DeepLink Pro" → Cancella
+                            </small>
+                        </div>
+                    </div>
                     
                 <?php elseif ($is_in_grace_period): ?>
                     <div style="margin: 1rem 0;">
@@ -296,13 +379,13 @@ $stats = $stmt->fetch(PDO::FETCH_ASSOC);
                     </a>
                 <?php endif; ?>
                 
-                <?php if ($user['subscription_id']): ?>
+                <?php if ($user['subscription_id'] && !$user['cancellation_requested']): ?>
                     <div class="paypal-info">
-                        <strong>💳 Gestione Abbonamento:</strong> Per modificare o cancellare il tuo abbonamento, 
-                        accedi al tuo account PayPal e gestisci i pagamenti automatici dalla sezione "Impostazioni".
+                        <strong>💳 Gestione Abbonamento:</strong> Il tuo abbonamento si rinnova automaticamente ogni mese tramite PayPal. 
+                        Puoi anche gestire l'abbonamento direttamente dal tuo account PayPal.
                         <br><br>
                         <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" style="color: #004085; text-decoration: underline;">
-                            Gestisci abbonamenti su PayPal →
+                            Visualizza su PayPal →
                         </a>
                     </div>
                     

@@ -31,6 +31,13 @@ try {
         // Colonna già esistente, ignora l'errore
     }
     
+    try {
+        // Colonna per tracciare se l'utente ha richiesto la cancellazione
+        $pdo->exec("ALTER TABLE users ADD COLUMN cancellation_requested TINYINT(1) DEFAULT 0 AFTER grace_period_until");
+    } catch (PDOException $e) {
+        // Colonna già esistente, ignora l'errore
+    }
+    
 } catch (PDOException $e) {
     die("Errore connessione DB: " . $e->getMessage());
 }
