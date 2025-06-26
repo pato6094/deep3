@@ -849,6 +849,12 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
                     </a>
                 </div>
                 <div class="nav-item">
+                    <a href="ip_management.php" class="nav-link">
+                        <span class="nav-icon">🛡️</span>
+                        <span>Gestione IP</span>
+                    </a>
+                </div>
+                <div class="nav-item">
                     <a href="../dashboard.php" class="nav-link">
                         <span class="nav-icon">👤</span>
                         <span>Dashboard Utente</span>
