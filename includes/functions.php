@@ -61,8 +61,65 @@ function generate_deeplink($url) {
         return "twitch://stream/" . $username;
     }
     elseif (strpos($url, 'amazon.') !== false) {
-        $url_no_proto = preg_replace("#^https?://#", "", $url);
-        return "amazon://" . $url_no_proto;
+        // 🛒 GESTIONE AMAZON MIGLIORATA - Supporto per dispositivi mobili
+        
+        // Estrai il dominio Amazon (amazon.com, amazon.it, amazon.co.uk, etc.)
+        $host = parse_url($url, PHP_URL_HOST);
+        $path = parse_url($url, PHP_URL_PATH);
+        $query = parse_url($url, PHP_URL_QUERY);
+        
+        // Cerca l'ASIN (Amazon Standard Identification Number) nell'URL
+        $asin = null;
+        
+        // Pattern per trovare ASIN in diversi formati di URL Amazon
+        $patterns = [
+            '/\/dp\/([A-Z0-9]{10})/',           // /dp/ASIN
+            '/\/gp\/product\/([A-Z0-9]{10})/',  // /gp/product/ASIN
+            '/\/product\/([A-Z0-9]{10})/',      // /product/ASIN
+            '/\/exec\/obidos\/ASIN\/([A-Z0-9]{10})/', // Formato vecchio
+        ];
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $path, $matches)) {
+                $asin = $matches[1];
+                break;
+            }
+        }
+        
+        // Se non troviamo ASIN nel path, cerca nei parametri query
+        if (!$asin && $query) {
+            parse_str($query, $params);
+            if (isset($params['asin'])) {
+                $asin = $params['asin'];
+            } elseif (isset($params['ASIN'])) {
+                $asin = $params['ASIN'];
+            }
+        }
+        
+        // Se abbiamo trovato un ASIN, usa il formato deeplink ottimizzato
+        if ($asin && preg_match('/^[A-Z0-9]{10}$/', $asin)) {
+            // FORMATO UNIVERSALE per Amazon - Il più compatibile
+            return "amazon://product/" . $asin;
+        }
+        
+        // Se è una ricerca Amazon
+        if (strpos($path, '/s') === 0 && $query) {
+            parse_str($query, $params);
+            if (isset($params['k'])) {
+                $searchTerm = urlencode($params['k']);
+                return "amazon://search?k=" . $searchTerm;
+            }
+        }
+        
+        // Se è una categoria Amazon
+        if (preg_match('/\/([^\/]+)\/b\//', $path, $matches)) {
+            $category = $matches[1];
+            return "amazon://category/" . $category;
+        }
+        
+        // Fallback: usa il formato generico (meno affidabile ma meglio di niente)
+        $cleanUrl = preg_replace('#^https?://#', '', $url);
+        return "amazon://" . $cleanUrl;
     }
     return $url;
 }
