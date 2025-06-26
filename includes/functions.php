@@ -16,11 +16,58 @@ function generate_deeplink($url) {
     elseif (strpos($url, 'instagram.com') !== false) {
         $path = trim(parse_url($url, PHP_URL_PATH), '/');
         $parts = explode('/', $path);
-
+        
+        // Gestisce i post con parametri aggiuntivi come img_index
         if ($parts[0] === 'p' && isset($parts[1])) {
             $postId = $parts[1];
-            return "instagram://media?id=" . $postId;
-        } else {
+            $deeplink = "instagram://media?id=" . $postId;
+            
+            // Aggiungi parametri dalla query string se presenti
+            $query = parse_url($url, PHP_URL_QUERY);
+            if ($query) {
+                parse_str($query, $params);
+                
+                // Supporta img_index per carousel di immagini
+                if (isset($params['img_index'])) {
+                    $deeplink .= "&img_index=" . $params['img_index'];
+                }
+                
+                // Supporta altri parametri Instagram
+                if (isset($params['igsh'])) {
+                    $deeplink .= "&igsh=" . $params['igsh'];
+                }
+            }
+            
+            return $deeplink;
+        }
+        // Gestisce i reel con parametri aggiuntivi
+        elseif ($parts[0] === 'reel' && isset($parts[1])) {
+            $reelId = $parts[1];
+            $deeplink = "instagram://reel?id=" . $reelId;
+            
+            // Aggiungi parametri dalla query string se presenti
+            $query = parse_url($url, PHP_URL_QUERY);
+            if ($query) {
+                parse_str($query, $params);
+                
+                // Supporta parametri Instagram per i reel
+                if (isset($params['igsh'])) {
+                    $deeplink .= "&igsh=" . $params['igsh'];
+                }
+                
+                // Altri parametri specifici per i reel
+                if (isset($params['utm_source'])) {
+                    $deeplink .= "&utm_source=" . $params['utm_source'];
+                }
+                if (isset($params['utm_medium'])) {
+                    $deeplink .= "&utm_medium=" . $params['utm_medium'];
+                }
+            }
+            
+            return $deeplink;
+        }
+        // Gestisce i profili utente
+        else {
             $username = $parts[0];
             return "instagram://user?username=" . $username;
         }
