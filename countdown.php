@@ -125,6 +125,7 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
         }
         .countdown-card {
             background: white;
@@ -132,6 +133,7 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
             padding: 3rem;
             text-align: center;
             max-width: 500px;
+            width: 100%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             position: relative;
             overflow: hidden;
@@ -205,6 +207,105 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
             margin-bottom: 0.5rem;
             font-weight: 600;
         }
+        
+        /* BOTTONI MIGLIORATI */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+        
+        .btn-app {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 160px;
+            justify-content: center;
+        }
+        
+        .btn-app:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .btn-browser {
+            background: rgba(255, 255, 255, 0.1);
+            color: #333;
+            border: 2px solid #ddd;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 160px;
+            justify-content: center;
+        }
+        
+        .btn-browser:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .countdown-container {
+                padding: 1rem;
+            }
+            
+            .countdown-card {
+                padding: 2rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn-app,
+            .btn-browser {
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+        
+        /* ANIMAZIONI MIGLIORATE */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success-message {
+            color: #28a745;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -214,29 +315,36 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
             <?php if ($row['title']): ?>
                 <div class="deeplink-title"><?= htmlspecialchars($row['title']) ?></div>
             <?php endif; ?>
-            <h2 style="color: #333; margin-bottom: 1rem;">
+            <h2 style="color: #333; margin-bottom: 1rem;" id="main-title">
                 Sto aprendo <?= htmlspecialchars($app_name) ?> per te!
             </h2>
             <div class="countdown-number" id="countdown">3</div>
-            <p style="color: #666;">
+            <p style="color: #666;" id="status-text">
                 Preparazione del deeplink in corso...
             </p>
-            <div class="loading-dots">
+            <div class="loading-dots" id="loading-dots">
                 <div></div>
                 <div></div>
                 <div></div>
             </div>
             
-            <div class="fallback-link" id="fallback">
-                <p style="color: #666; margin-bottom: 1rem;">
-                    L'app non si è aperta automaticamente?
+            <!-- BOTTONI SEMPRE VISIBILI -->
+            <div class="action-buttons" id="action-buttons">
+                <a href="<?= htmlspecialchars($row['deeplink']) ?>" class="btn-app" id="app-button">
+                    📱 Apri <?= htmlspecialchars($app_name) ?>
+                </a>
+                <a href="<?= htmlspecialchars($row['original_url']) ?>" class="btn-browser" target="_blank" id="browser-button">
+                    🌐 Apri nel Browser
+                </a>
+            </div>
+            
+            <div class="fallback-link" id="fallback" style="display: none;">
+                <p style="color: #666; margin-bottom: 1rem;" class="success-message">
+                    ✅ Apertura completata!
                 </p>
-                <a href="<?= htmlspecialchars($row['deeplink']) ?>" class="btn btn-primary" style="margin-right: 1rem;">
-                    Apri <?= htmlspecialchars($app_name) ?>
-                </a>
-                <a href="<?= htmlspecialchars($row['original_url']) ?>" class="btn btn-secondary" target="_blank">
-                    Apri nel Browser
-                </a>
+                <p style="color: #666; font-size: 0.9rem;">
+                    Se l'app non si è aperta automaticamente, usa i pulsanti qui sopra.
+                </p>
             </div>
         </div>
     </div>
@@ -245,6 +353,11 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
         let countdown = 3;
         const countdownElement = document.getElementById('countdown');
         const fallbackElement = document.getElementById('fallback');
+        const mainTitle = document.getElementById('main-title');
+        const statusText = document.getElementById('status-text');
+        const loadingDots = document.getElementById('loading-dots');
+        const actionButtons = document.getElementById('action-buttons');
+        const appButton = document.getElementById('app-button');
         
         const timer = setInterval(() => {
             countdown--;
@@ -264,18 +377,52 @@ $display_title = $row['title'] ? htmlspecialchars($row['title']) : "Apertura " .
                     })
                 });
                 
-                // Prova ad aprire l'app
+                // Prova ad aprire l'app automaticamente
                 window.location.href = '<?= htmlspecialchars($row['deeplink']) ?>';
                 
-                // Mostra il fallback dopo 2 secondi
+                // Aggiorna l'interfaccia dopo il countdown
                 setTimeout(() => {
-                    fallbackElement.style.display = 'block';
+                    // Nascondi countdown e loading
                     countdownElement.style.display = 'none';
-                    document.querySelector('h2').textContent = 'Apertura completata!';
-                    document.querySelector('p').textContent = 'Se l\'app non si è aperta, usa i pulsanti qui sotto.';
-                }, 2000);
+                    loadingDots.style.display = 'none';
+                    
+                    // Aggiorna testi
+                    mainTitle.textContent = 'Apertura in corso...';
+                    statusText.textContent = 'Tentativo di apertura automatica dell\'app';
+                    
+                    // Mostra il messaggio di fallback
+                    fallbackElement.style.display = 'block';
+                    fallbackElement.classList.add('fade-in');
+                    
+                    // Evidenzia il bottone dell'app
+                    appButton.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                    appButton.innerHTML = '✅ Apri <?= htmlspecialchars($app_name) ?>';
+                    
+                }, 1000);
             }
         }, 1000);
+        
+        // Gestione click sui bottoni
+        appButton.addEventListener('click', function(e) {
+            // Aggiorna il contatore dei click se non è già stato fatto
+            fetch('update_click.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: '<?= $id ?>'
+                })
+            });
+        });
+        
+        // Feedback visivo per il bottone browser
+        document.getElementById('browser-button').addEventListener('click', function() {
+            this.style.background = 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)';
+            this.style.color = 'white';
+            this.style.borderColor = 'transparent';
+            this.innerHTML = '✅ Apertura Browser...';
+        });
     </script>
 </body>
 </html>
