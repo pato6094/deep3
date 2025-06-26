@@ -142,105 +142,271 @@ function generate_deeplink_url($link) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - DeepLink Generator</title>
+    <title>Dashboard - DeepLink Pro</title>
     <link rel="stylesheet" href="assets/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .expiry-info {
-            background: #fff3cd;
-            color: #856404;
-            padding: 0.5rem;
+        /* TITOLI BIANCHI */
+        .card h2 {
+            color: #ffffff !important;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .card h3 {
+            color: #ffffff !important;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        /* RESPONSIVE TABLES */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .stats-table {
+            min-width: 800px; /* Larghezza minima per evitare compressione eccessiva */
+        }
+        
+        /* AZIONI TABELLA - BOTTONI SEMPRE SULLA STESSA LINEA */
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: nowrap; /* IMPEDISCE IL WRAP */
+            min-width: 200px; /* Larghezza minima per contenere tutti i bottoni */
+        }
+        
+        .table-actions .btn {
+            white-space: nowrap;
+            flex-shrink: 0; /* IMPEDISCE LA COMPRESSIONE */
+            min-width: auto;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
             border-radius: 8px;
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-            border: 1px solid #ffeaa7;
         }
-        .expiry-warning {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
+        
+        .table-actions .copy-btn,
+        .table-actions .delete-btn {
+            flex-shrink: 0; /* IMPEDISCE LA COMPRESSIONE */
+            white-space: nowrap;
+            min-width: 60px;
         }
-        .expiry-expired {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-color: #bee5eb;
+        
+        /* MIGLIORAMENTI RESPONSIVE */
+        @media (max-width: 1200px) {
+            .stats-table {
+                min-width: 900px;
+            }
+            
+            .table-actions {
+                min-width: 180px;
+            }
         }
-        .copy-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            margin-left: 0.5rem;
-            transition: background-color 0.3s ease;
+        
+        @media (max-width: 768px) {
+            .stats-table {
+                min-width: 700px;
+                font-size: 0.875rem;
+            }
+            
+            .stats-table th,
+            .stats-table td {
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .table-actions {
+                min-width: 160px;
+                gap: 0.25rem;
+            }
+            
+            .table-actions .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+                min-width: 50px;
+            }
+            
+            .url-cell {
+                max-width: 200px;
+            }
+            
+            .deeplink-title {
+                font-size: 0.875rem;
+            }
         }
-        .copy-btn:hover {
-            background: #218838;
+        
+        @media (max-width: 480px) {
+            .stats-table {
+                min-width: 600px;
+                font-size: 0.8rem;
+            }
+            
+            .table-actions {
+                flex-direction: column;
+                gap: 0.25rem;
+                min-width: 80px;
+            }
+            
+            .table-actions .btn {
+                width: 100%;
+                padding: 0.25rem;
+                font-size: 0.65rem;
+            }
         }
-        .copy-btn.copied {
-            background: #17a2b8;
-        }
-        .delete-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            margin-left: 0.25rem;
-            transition: background-color 0.3s ease;
-        }
-        .delete-btn:hover {
-            background: #c82333;
-        }
-        .deeplink-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.25rem;
-        }
-        .custom-name-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 0.125rem 0.5rem;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: 0.5rem;
-        }
-        .custom-url-badge {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            padding: 0.125rem 0.5rem;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: 0.5rem;
-        }
+        
+        /* FORM RESPONSIVE */
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
         }
-        .url-preview {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            padding: 0.75rem;
-            margin-top: 0.5rem;
-            font-family: monospace;
-            font-size: 0.9rem;
-            color: #495057;
-        }
-        .url-preview.active {
-            border-color: #28a745;
-            background: #d4edda;
-            color: #155724;
-        }
+        
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
+            }
+        }
+        
+        /* URL PREVIEW RESPONSIVE */
+        .url-preview {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            word-break: break-all;
+        }
+        
+        .url-preview.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            color: #93c5fd;
+        }
+        
+        /* BADGES RESPONSIVE */
+        .custom-name-badge,
+        .custom-url-badge {
+            display: inline-block;
+            margin-left: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        
+        @media (max-width: 768px) {
+            .custom-name-badge,
+            .custom-url-badge {
+                display: block;
+                margin-left: 0;
+                margin-top: 0.5rem;
+                width: fit-content;
+            }
+        }
+        
+        /* STATISTICHE RESPONSIVE */
+        .usage-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .usage-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .usage-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* TIPS GRID RESPONSIVE */
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .tips-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+        
+        /* EXPIRY INFO RESPONSIVE */
+        .expiry-info {
+            background: rgba(255, 193, 7, 0.15);
+            backdrop-filter: blur(10px);
+            color: #fbbf24;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            font-weight: 500;
+            line-height: 1.5;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .expiry-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.4), transparent);
+        }
+        
+        .expiry-info a {
+            color: #fbbf24;
+            text-decoration: underline;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .expiry-info a:hover {
+            color: #ffffff;
+            text-decoration: none;
+        }
+        
+        /* PERFORMANCE RANK RESPONSIVE */
+        .performance-rank {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .performance-rank {
+                position: static;
+                width: 30px;
+                height: 30px;
+                font-size: 0.75rem;
+                margin-bottom: 1rem;
             }
         }
     </style>
@@ -249,7 +415,7 @@ function generate_deeplink_url($link) {
     <header class="header">
         <div class="container">
             <nav class="nav">
-                <a href="index.php" class="logo">DeepLink Pro</a>
+                <a href="index.php" class="logo">🚀 DeepLink Pro</a>
                 <div class="nav-links">
                     <span>Ciao, <?= htmlspecialchars($_SESSION['user_name']) ?>!</span>
                     <a href="profile.php">Profilo</a>
@@ -286,11 +452,11 @@ function generate_deeplink_url($link) {
 
             <!-- Generatore Deeplink -->
             <div class="card">
-                <h2>Genera Nuovo Deeplink</h2>
-                <p style="color: #666; margin-bottom: 2rem;">
+                <h2>✨ Genera Nuovo Deeplink</h2>
+                <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 2rem;">
                     Supportiamo YouTube, Instagram, Twitch, Amazon e molti altri servizi
                     <?php if ($has_subscription): ?>
-                        <br><span style="color: #28a745; font-weight: 600;">✓ Premium: URL personalizzati e link permanenti!</span>
+                        <br><span style="color: #4ade80; font-weight: 600;">✓ Premium: URL personalizzati e link permanenti!</span>
                     <?php endif; ?>
                 </p>
                 
@@ -304,7 +470,7 @@ function generate_deeplink_url($link) {
                 
                 <?php if (!$can_create): ?>
                     <div class="alert alert-info">
-                        Hai raggiunto il limite mensile. <a href="pricing.php" style="color: #667eea;">Passa a Premium</a> per deeplink illimitati!
+                        Hai raggiunto il limite mensile. <a href="pricing.php" style="color: #93c5fd;">Passa a Premium</a> per deeplink illimitati!
                     </div>
                 <?php endif; ?>
                 
@@ -315,7 +481,7 @@ function generate_deeplink_url($link) {
                                placeholder="Es: Video YouTube interessante, Post Instagram..." 
                                value="<?= htmlspecialchars($_POST['title'] ?? '') ?>"
                                <?= !$can_create ? 'disabled' : '' ?> required>
-                        <small style="color: #666;">Inserisci un titolo per identificare facilmente questo deeplink</small>
+                        <small style="color: rgba(255, 255, 255, 0.6);">Inserisci un titolo per identificare facilmente questo deeplink</small>
                     </div>
 
                     <div class="form-row">
@@ -339,7 +505,7 @@ function generate_deeplink_url($link) {
                                    minlength="3" maxlength="20"
                                    oninput="updateUrlPreview()"
                                    <?= !$can_create ? 'disabled' : '' ?>>
-                            <small style="color: #666;">Opzionale. Solo lettere, numeri, trattini e underscore (3-20 caratteri)</small>
+                            <small style="color: rgba(255, 255, 255, 0.6);">Opzionale. Solo lettere, numeri, trattini e underscore (3-20 caratteri)</small>
                             <div id="url-preview" class="url-preview">
                                 <?= (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http" ?>://<?= $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) ?>/tuo-nome-personalizzato
                             </div>
@@ -348,13 +514,13 @@ function generate_deeplink_url($link) {
                     </div>
                     
                     <button type="submit" class="btn btn-primary" <?= !$can_create ? 'disabled' : '' ?>>
-                        Genera Deeplink
+                        🚀 Genera Deeplink
                     </button>
                 </form>
                 
                 <?php if ($deeplink_url): ?>
                     <div class="result">
-                        <strong>Il tuo deeplink è pronto!</strong>
+                        <strong>🎉 Il tuo deeplink è pronto!</strong>
                         <?php if ($has_subscription && !empty($_POST['custom_name'])): ?>
                             <span class="custom-url-badge">URL PERSONALIZZATO</span>
                         <?php endif; ?>
@@ -370,7 +536,7 @@ function generate_deeplink_url($link) {
                         <?php if (!$has_subscription): ?>
                             <div class="expiry-info">
                                 ⏰ <strong>Attenzione:</strong> Questo link scadrà tra 5 giorni. 
-                                <a href="pricing.php" style="color: #856404;">Passa a Premium</a> per link permanenti e URL personalizzati!
+                                <a href="pricing.php">Passa a Premium</a> per link permanenti e URL personalizzati!
                             </div>
                         <?php endif; ?>
                     </div>
@@ -381,9 +547,9 @@ function generate_deeplink_url($link) {
             <?php if ($has_subscription && !empty($top_deeplinks)): ?>
             <div class="card">
                 <h2>🏆 Top Deeplink per Click</h2>
-                <p style="color: #666; margin-bottom: 2rem;">I tuoi deeplink più performanti</p>
+                <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 2rem;">I tuoi deeplink più performanti</p>
                 
-                <div style="overflow-x: auto;">
+                <div class="table-container">
                     <table class="stats-table">
                         <thead>
                             <tr>
@@ -406,7 +572,6 @@ function generate_deeplink_url($link) {
                                 <td>
                                     <div class="deeplink-title">
                                         <?= htmlspecialchars($link['title'] ?? '') ?>
-
                                         <?php if ($link['custom_name']): ?>
                                             <span class="custom-url-badge">CUSTOM</span>
                                         <?php endif; ?>
@@ -431,7 +596,7 @@ function generate_deeplink_url($link) {
                                     <?= date('d/m/Y H:i', strtotime($link['created_at'])) ?>
                                 </td>
                                 <td>
-                                    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                                    <div class="table-actions">
                                         <a href="<?= generate_deeplink_url($link) ?>" target="_blank" 
                                            class="btn btn-secondary btn-sm">
                                             Apri
@@ -456,7 +621,7 @@ function generate_deeplink_url($link) {
                 <div class="alert alert-info">
                     <strong>Funzionalità Premium</strong><br>
                     Le statistiche dettagliate sui click sono disponibili solo per gli utenti Premium.
-                    <a href="pricing.php" style="color: #667eea;">Passa a Premium</a> per sbloccare questa funzionalità!
+                    <a href="pricing.php" style="color: #93c5fd;">Passa a Premium</a> per sbloccare questa funzionalità!
                 </div>
             </div>
             <?php endif; ?>
@@ -465,14 +630,14 @@ function generate_deeplink_url($link) {
             <?php if (!empty($recent_deeplinks)): ?>
             <div class="card">
                 <h2>📊 I tuoi Deeplink Recenti</h2>
-                <p style="color: #666; margin-bottom: 2rem;">
+                <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 2rem;">
                     Cronologia completa dei tuoi deeplink
                     <?php if (!$has_subscription): ?>
                         <span style="color: #f39c12;">(Statistiche click disponibili solo per utenti Premium)</span>
                     <?php endif; ?>
                 </p>
                 
-                <div style="overflow-x: auto;">
+                <div class="table-container">
                     <table class="stats-table">
                         <thead>
                             <tr>
@@ -494,7 +659,6 @@ function generate_deeplink_url($link) {
                                 <td>
                                     <div class="deeplink-title">
                                         <?= htmlspecialchars($link['title'] ?? '') ?>
-
                                         <?php if ($link['custom_name']): ?>
                                             <span class="custom-url-badge">CUSTOM</span>
                                         <?php endif; ?>
@@ -516,7 +680,7 @@ function generate_deeplink_url($link) {
                                             <?= $link['clicks'] ?>
                                         </div>
                                     <?php else: ?>
-                                        <div class="click-badge" style="background: #f8f9fa; color: #999;">
+                                        <div class="click-badge" style="background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5);">
                                             🔒
                                         </div>
                                     <?php endif; ?>
@@ -526,17 +690,17 @@ function generate_deeplink_url($link) {
                                 </td>
                                 <td>
                                     <?php if ($has_subscription): ?>
-                                        <span style="color: #28a745; font-weight: 600;">✓ Permanente</span>
+                                        <span style="color: #4ade80; font-weight: 600;">✓ Permanente</span>
                                     <?php elseif ($is_expired): ?>
-                                        <span style="color: #dc3545; font-weight: 600;">✗ Scaduto</span>
+                                        <span style="color: #f87171; font-weight: 600;">✗ Scaduto</span>
                                     <?php elseif ($days_remaining <= 1): ?>
-                                        <span style="color: #fd7e14; font-weight: 600;">⚠ Scade oggi</span>
+                                        <span style="color: #fbbf24; font-weight: 600;">⚠ Scade oggi</span>
                                     <?php else: ?>
-                                        <span style="color: #6c757d;">⏰ <?= $days_remaining ?> giorni</span>
+                                        <span style="color: rgba(255, 255, 255, 0.6);">⏰ <?= $days_remaining ?> giorni</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                                    <div class="table-actions">
                                         <?php if (!$is_expired): ?>
                                             <a href="<?= generate_deeplink_url($link) ?>" target="_blank" 
                                                class="btn btn-secondary btn-sm">
@@ -546,7 +710,7 @@ function generate_deeplink_url($link) {
                                                 Copia
                                             </button>
                                         <?php else: ?>
-                                            <span style="color: #6c757d; font-size: 0.875rem;">Link scaduto</span>
+                                            <span style="color: rgba(255, 255, 255, 0.5); font-size: 0.875rem;">Link scaduto</span>
                                         <?php endif; ?>
                                         <button class="delete-btn" onclick="deleteDeeplink('<?= $link['id'] ?>', this)">
                                             Elimina
@@ -599,7 +763,7 @@ function generate_deeplink_url($link) {
                         <div class="tip-icon">📊</div>
                         <div class="tip-content">
                             <h3>Funzionalità Premium</h3>
-                            <p><a href="pricing.php" style="color: #667eea;">Passa a Premium</a> per URL personalizzati e statistiche dettagliate</p>
+                            <p><a href="pricing.php" style="color: #93c5fd;">Passa a Premium</a> per URL personalizzati e statistiche dettagliate</p>
                         </div>
                     </div>
                     <?php endif; ?>
