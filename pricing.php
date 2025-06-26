@@ -140,7 +140,19 @@ require_once 'includes/functions.php';
             },
             createSubscription: function(data, actions) {
                 return actions.subscription.create({
-                    plan_id: 'P-7RV70051U1318953DNBNLR3Q'
+                    plan_id: 'P-7RV70051U1318953DNBNLR3Q',
+                    application_context: {
+                        brand_name: "DeepLink Pro",
+                        locale: "it-IT",
+                        shipping_preference: "NO_SHIPPING",
+                        user_action: "SUBSCRIBE_NOW",
+                        payment_method: {
+                            payer_selected: "PAYPAL",
+                            payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED"
+                        },
+                        return_url: "<?= (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http' ?>://<?= $_SERVER['HTTP_HOST'] ?><?= dirname($_SERVER['PHP_SELF']) ?>/payment_success.php?user_id=<?= $_SESSION['user_id'] ?>",
+                        cancel_url: "<?= (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http' ?>://<?= $_SERVER['HTTP_HOST'] ?><?= dirname($_SERVER['PHP_SELF']) ?>/pricing.php?cancelled=1"
+                    }
                 });
             },
             onApprove: function(data, actions) {
@@ -159,7 +171,7 @@ require_once 'includes/functions.php';
                 .then(data => {
                     if (data.success) {
                         // Reindirizza alla pagina di successo
-                        window.location.href = 'payment_success.php';
+                        window.location.href = 'payment_success.php?first_payment=1';
                     } else {
                         alert('Errore nell\'attivazione dell\'abbonamento: ' + data.message);
                     }

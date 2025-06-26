@@ -10,21 +10,31 @@ if (!is_logged_in()) {
 $user_id = $_SESSION['user_id'];
 $success_message = '';
 $error_message = '';
+$is_first_payment = isset($_GET['first_payment']);
 
-// Se viene chiamata questa pagina, significa che il pagamento è andato a buon fine
-// Aggiorna la data di prossimo rinnovo
-if (update_billing_date($pdo, $user_id)) {
-    $success_message = 'Pagamento ricevuto con successo! Il tuo abbonamento Premium è stato rinnovato.';
-    
-    // Log per debug
-    error_log("Pagamento confermato per utente $user_id - Data rinnovo aggiornata");
+// Verifica se l'utente nell'URL corrisponde a quello loggato (per sicurezza)
+if (isset($_GET['user_id']) && $_GET['user_id'] != $user_id) {
+    $error_message = 'Errore di sicurezza: utente non corrispondente.';
 } else {
-    $error_message = 'Errore nell\'aggiornamento dell\'abbonamento. Contatta il supporto.';
+    // Se viene chiamata questa pagina, significa che il pagamento è andato a buon fine
+    // Aggiorna la data di prossimo rinnovo
+    if (update_billing_date($pdo, $user_id)) {
+        if ($is_first_payment) {
+            $success_message = 'Benvenuto in DeepLink Pro Premium! Il tuo abbonamento è stato attivato con successo.';
+        } else {
+            $success_message = 'Pagamento ricevuto con successo! Il tuo abbonamento Premium è stato rinnovato.';
+        }
+        
+        // Log per debug
+        error_log("Pagamento confermato per utente $user_id - Data rinnovo aggiornata" . ($is_first_payment ? " (primo pagamento)" : " (rinnovo)"));
+    } else {
+        $error_message = 'Errore nell\'aggiornamento dell\'abbonamento. Contatta il supporto.';
+    }
 }
 
 // Recupera informazioni utente aggiornate
 $stmt = $pdo->prepare("
-    SELECT subscription_status, subscription_end, next_billing_date 
+    SELECT subscription_status, subscription_end, next_billing_date, grace_period_until
     FROM users 
     WHERE id = :user_id
 ");
@@ -47,6 +57,13 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
             justify-content: center;
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         }
+        .error-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
         .success-card {
             background: white;
             border-radius: 20px;
@@ -60,8 +77,20 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
             margin-bottom: 1rem;
             color: #28a745;
         }
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #dc3545;
+        }
         .billing-info {
             background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+        .premium-features {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
             border-radius: 10px;
             padding: 1rem;
             margin: 1.5rem 0;
@@ -70,14 +99,29 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
-    <div class="success-container">
+    <div class="<?= $success_message ? 'success-container' : 'error-container' ?>">
         <div class="success-card">
             <?php if ($success_message): ?>
                 <div class="success-icon">✅</div>
-                <h2 style="color: #28a745; margin-bottom: 1rem;">Pagamento Confermato!</h2>
+                <h2 style="color: #28a745; margin-bottom: 1rem;">
+                    <?= $is_first_payment ? 'Benvenuto in Premium!' : 'Pagamento Confermato!' ?>
+                </h2>
                 <p style="color: #666; margin-bottom: 2rem;">
                     <?= htmlspecialchars($success_message) ?>
                 </p>
+                
+                <?php if ($is_first_payment): ?>
+                <div class="premium-features">
+                    <h3 style="color: #155724; margin-bottom: 1rem;">🎉 Ora hai accesso a:</h3>
+                    <ul style="color: #155724; text-align: left; margin: 0;">
+                        <li>✓ Deeplink illimitati ogni mese</li>
+                        <li>✓ URL personalizzati (es: tuosito.com/mio-link)</li>
+                        <li>✓ Link permanenti che non scadono mai</li>
+                        <li>✓ Statistiche dettagliate sui click</li>
+                        <li>✓ Supporto prioritario</li>
+                    </ul>
+                </div>
+                <?php endif; ?>
                 
                 <?php if ($user): ?>
                 <div class="billing-info">
@@ -93,12 +137,19 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
                     <p><strong>Scadenza attuale:</strong> 
                         <?= date('d/m/Y', strtotime($user['subscription_end'])) ?>
                     </p>
+                    
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+                        <small style="color: #666;">
+                            <strong>💡 Importante:</strong> PayPal rinnoverà automaticamente il tuo abbonamento ogni mese. 
+                            Ogni volta che PayPal elabora un pagamento, verrai reindirizzato a questa pagina per confermare il rinnovo.
+                        </small>
+                    </div>
                 </div>
                 <?php endif; ?>
                 
                 <div style="margin-top: 2rem;">
                     <a href="dashboard.php" class="btn btn-primary" style="margin-right: 1rem;">
-                        Vai alla Dashboard
+                        <?= $is_first_payment ? 'Inizia a Creare Deeplink' : 'Vai alla Dashboard' ?>
                     </a>
                     <a href="profile.php" class="btn btn-secondary">
                         Gestisci Profilo
@@ -106,7 +157,7 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 </div>
                 
             <?php else: ?>
-                <div class="success-icon" style="color: #dc3545;">❌</div>
+                <div class="error-icon">❌</div>
                 <h2 style="color: #dc3545; margin-bottom: 1rem;">Errore Pagamento</h2>
                 <p style="color: #666; margin-bottom: 2rem;">
                     <?= htmlspecialchars($error_message) ?>
@@ -123,5 +174,16 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </div>
     </div>
+    
+    <?php if ($success_message): ?>
+    <script>
+        // Auto-redirect alla dashboard dopo 10 secondi per i primi pagamenti
+        <?php if ($is_first_payment): ?>
+        setTimeout(function() {
+            window.location.href = 'dashboard.php';
+        }, 10000);
+        <?php endif; ?>
+    </script>
+    <?php endif; ?>
 </body>
 </html>
