@@ -1,7 +1,6 @@
 <?php
 require_once 'config/database.php';
 require_once 'includes/functions.php';
-require_once 'includes/subscription_helpers.php';
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -14,8 +13,8 @@ if (!is_logged_in()) {
 
 $user_id = $_SESSION['user_id'];
 
-// Simula controllo abbonamento ogni volta che l'utente accede
-simulate_subscription_check($pdo, $user_id);
+// Processa automaticamente gli abbonamenti scaduti quando l'utente accede
+process_expired_subscriptions($pdo);
 
 $deeplink_url = "";
 $error = "";
@@ -28,15 +27,6 @@ $can_create = can_create_deeplink($pdo, $user_id);
 
 // Statistiche totali click (solo per utenti PRO)
 $total_clicks = $has_subscription ? get_total_clicks($pdo, $user_id) : 0;
-
-// Controlla se l'utente è in periodo di grazia
-$stmt = $pdo->prepare("
-    SELECT grace_period_until 
-    FROM users 
-    WHERE id = :user_id AND grace_period_until IS NOT NULL AND grace_period_until > NOW()
-");
-$stmt->execute([':user_id' => $user_id]);
-$grace_period = $stmt->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['url'])) {
     if (!$can_create) {
@@ -155,22 +145,6 @@ function generate_deeplink_url($link) {
     <title>Dashboard - DeepLink Generator</title>
     <link rel="stylesheet" href="assets/style.css">
     <style>
-        .grace-period-alert {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border: 2px solid #ffc107;
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        .grace-period-alert h3 {
-            color: #856404;
-            margin-bottom: 1rem;
-        }
-        .grace-period-alert p {
-            color: #856404;
-            margin-bottom: 1.5rem;
-        }
         .expiry-info {
             background: #fff3cd;
             color: #856404;
@@ -290,29 +264,6 @@ function generate_deeplink_url($link) {
 
     <main class="main">
         <div class="container">
-            <!-- Alert Periodo di Grazia -->
-            <?php if ($grace_period): ?>
-            <div class="grace-period-alert">
-                <h3>⚠️ Abbonamento in Periodo di Grazia</h3>
-                <p>
-                    Il tuo abbonamento non è stato rinnovato automaticamente. 
-                    Hai accesso alle funzionalità Premium fino al <strong><?= date('d/m/Y H:i', strtotime($grace_period)) ?></strong>.
-                </p>
-                <div style="margin-bottom: 1rem;">
-                    <a href="manual_payment_check.php" class="btn btn-primary" style="margin-right: 1rem;">
-                        ✅ Ho già pagato su PayPal
-                    </a>
-                    <a href="pricing.php" class="btn btn-secondary">
-                        Rinnova Abbonamento
-                    </a>
-                </div>
-                <small style="color: #856404;">
-                    <strong>💡 Suggerimento:</strong> Se hai già pagato su PayPal ma il sistema non l'ha rilevato, 
-                    usa il pulsante "Ho già pagato" per confermare manualmente il pagamento.
-                </small>
-            </div>
-            <?php endif; ?>
-
             <!-- Statistiche -->
             <div class="usage-stats">
                 <div class="stat-card">
@@ -328,7 +279,7 @@ function generate_deeplink_url($link) {
                     <div class="stat-label"><?= $has_subscription ? 'Click Totali' : 'Solo PRO' ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number"><?= $has_subscription ? ($grace_period ? 'GRACE' : 'PRO') : 'FREE' ?></div>
+                    <div class="stat-number"><?= $has_subscription ? 'PRO' : 'FREE' ?></div>
                     <div class="stat-label">Piano attuale</div>
                 </div>
             </div>

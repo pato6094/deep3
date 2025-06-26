@@ -17,24 +17,37 @@ if (isset($_GET['user_id']) && $_GET['user_id'] != $user_id) {
     $error_message = 'Errore di sicurezza: utente non corrispondente.';
 } else {
     // Se viene chiamata questa pagina, significa che il pagamento è andato a buon fine
-    // Aggiorna la data di prossimo rinnovo
-    if (update_billing_date($pdo, $user_id)) {
-        if ($is_first_payment) {
-            $success_message = 'Benvenuto in DeepLink Pro Premium! Il tuo abbonamento è stato attivato con successo.';
-        } else {
-            $success_message = 'Pagamento ricevuto con successo! Il tuo abbonamento Premium è stato rinnovato.';
-        }
+    // Aggiorna la data di scadenza dell'abbonamento
+    try {
+        $subscription_end = date('Y-m-d H:i:s', strtotime('+1 month'));
         
-        // Log per debug
-        error_log("Pagamento confermato per utente $user_id - Data rinnovo aggiornata" . ($is_first_payment ? " (primo pagamento)" : " (rinnovo)"));
-    } else {
-        $error_message = 'Errore nell\'aggiornamento dell\'abbonamento. Contatta il supporto.';
+        $stmt = $pdo->prepare("
+            UPDATE users 
+            SET subscription_end = :subscription_end,
+                cancellation_requested = 0
+            WHERE id = :user_id
+        ");
+        
+        if ($stmt->execute([':subscription_end' => $subscription_end, ':user_id' => $user_id])) {
+            if ($is_first_payment) {
+                $success_message = 'Benvenuto in DeepLink Pro Premium! Il tuo abbonamento è stato attivato con successo.';
+            } else {
+                $success_message = 'Pagamento ricevuto con successo! Il tuo abbonamento Premium è stato rinnovato.';
+            }
+            
+            // Log per debug
+            error_log("Pagamento confermato per utente $user_id - Scadenza aggiornata a $subscription_end" . ($is_first_payment ? " (primo pagamento)" : " (rinnovo)"));
+        } else {
+            $error_message = 'Errore nell\'aggiornamento dell\'abbonamento. Contatta il supporto.';
+        }
+    } catch (Exception $e) {
+        $error_message = 'Errore del server: ' . $e->getMessage();
     }
 }
 
 // Recupera informazioni utente aggiornate
 $stmt = $pdo->prepare("
-    SELECT subscription_status, subscription_end, next_billing_date, grace_period_until
+    SELECT subscription_status, subscription_end, cancellation_requested
     FROM users 
     WHERE id = :user_id
 ");
@@ -129,11 +142,6 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
                     <p><strong>Stato:</strong> 
                         <span style="color: #28a745;">✓ Premium Attivo</span>
                     </p>
-                    <?php if ($user['next_billing_date']): ?>
-                    <p><strong>Prossimo rinnovo:</strong> 
-                        <?= date('d/m/Y', strtotime($user['next_billing_date'])) ?>
-                    </p>
-                    <?php endif; ?>
                     <p><strong>Scadenza attuale:</strong> 
                         <?= date('d/m/Y', strtotime($user['subscription_end'])) ?>
                     </p>
