@@ -54,14 +54,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrazione - DeepLink Generator</title>
+    <title>Registrazione - DeepLink Pro</title>
     <link rel="stylesheet" href="../assets/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="header">
         <div class="container">
             <nav class="nav">
-                <a href="../index.php" class="logo">DeepLink Pro</a>
+                <a href="../index.php" class="logo">🚀 DeepLink Pro</a>
                 <div class="nav-links">
                     <a href="../auth/login.php">Login</a>
                     <a href="../auth/register.php">Registrati</a>
@@ -74,8 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="container">
             <div style="max-width: 500px; margin: 0 auto;">
                 <div class="card">
-                    <h2>Crea il tuo Account</h2>
-                    <p style="color: #666; margin-bottom: 2rem;">Registrati per iniziare a creare deeplink personalizzati</p>
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🚀</div>
+                        <h2>Crea il tuo Account</h2>
+                        <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 0;">
+                            Registrati per iniziare a creare deeplink personalizzati e accedere alle analytics
+                        </p>
+                    </div>
                     
                     <?php if ($error): ?>
                         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
@@ -89,37 +97,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="form-group">
                             <label for="name">Nome Completo</label>
                             <input type="text" id="name" name="name" class="form-control" 
-                                   value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required>
+                                   value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" 
+                                   placeholder="Il tuo nome completo" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="email">Email</label>
                             <input type="email" id="email" name="email" class="form-control" 
-                                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
+                                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" 
+                                   placeholder="la-tua-email@esempio.com" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" name="password" class="form-control" required>
-                            <small style="color: #666;">Minimo 6 caratteri</small>
+                            <input type="password" id="password" name="password" class="form-control" 
+                                   placeholder="Minimo 6 caratteri" required>
+                            <small style="color: rgba(255, 255, 255, 0.6); font-size: 0.875rem;">
+                                Minimo 6 caratteri
+                            </small>
                         </div>
                         
                         <div class="form-group">
                             <label for="confirm_password">Conferma Password</label>
-                            <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                            <input type="password" id="confirm_password" name="confirm_password" class="form-control" 
+                                   placeholder="Ripeti la password" required>
                         </div>
                         
                         <button type="submit" class="btn btn-primary" style="width: 100%;">
-                            Registrati
+                            🚀 Registrati
                         </button>
                     </form>
                     
-                    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
-                        <p>Hai già un account? <a href="login.php" style="color: #667eea; text-decoration: none;">Accedi qui</a></p>
+                    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                        <p style="color: rgba(255, 255, 255, 0.7);">
+                            Hai già un account? 
+                            <a href="login.php" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                                Accedi qui
+                            </a>
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </main>
+
+    <!-- Floating elements -->
+    <div style="position: fixed; top: 20%; left: 10%; width: 100px; height: 100px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 50%; filter: blur(40px); pointer-events: none; z-index: -1;"></div>
+    <div style="position: fixed; bottom: 20%; right: 10%; width: 150px; height: 150px; background: linear-gradient(135deg, rgba(255, 119, 198, 0.1), rgba(120, 219, 255, 0.1)); border-radius: 50%; filter: blur(60px); pointer-events: none; z-index: -1;"></div>
 </body>
 </html>
