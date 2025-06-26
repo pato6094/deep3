@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upgrade_user'])) {
             UPDATE users 
             SET subscription_status = 'active',
                 subscription_start = NOW(),
-                subscription_end = DATE_ADD(NOW(), INTERVAL 1 YEAR)
+                subscription_end = DATE_ADD(NOW(), INTERVAL 1 YEAR),
+                cancellation_requested = 0
             WHERE id = :user_id
         ");
         
@@ -48,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['downgrade_user'])) {
             SET subscription_status = 'free',
                 subscription_start = NULL,
                 subscription_end = NULL,
-                subscription_id = NULL
+                subscription_id = NULL,
+                cancellation_requested = 0
             WHERE id = :user_id
         ");
         
@@ -115,6 +117,16 @@ $stmt->bindValue(':per_page', $per_page, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Statistiche cancellazioni per il widget
+$cancellation_stats_stmt = $pdo->query("
+    SELECT 
+        COUNT(CASE WHEN cancellation_requested = 1 AND subscription_end > NOW() THEN 1 END) as pending_cancellations,
+        COUNT(CASE WHEN cancellation_requested = 1 AND subscription_end <= NOW() THEN 1 END) as completed_cancellations
+    FROM users 
+    WHERE subscription_id IS NOT NULL
+");
+$cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -144,6 +156,9 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             padding: 1.5rem;
             border-radius: 15px;
             text-align: center;
+        }
+        .admin-stat-card.cancellation {
+            background: linear-gradient(135deg, #fd7e14 0%, #f39c12 100%);
         }
         .filters {
             display: flex;
@@ -180,6 +195,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             background: #f8d7da;
             color: #721c24;
         }
+        .status-cancellation-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
         .pagination {
             display: flex;
             justify-content: center;
@@ -201,6 +220,23 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .pagination a:hover {
             background: #f8f9fa;
         }
+        .quick-action-card {
+            background: linear-gradient(135deg, #fd7e14 0%, #f39c12 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .quick-action-card a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .quick-action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(253, 126, 20, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -209,6 +245,8 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <nav class="nav">
                 <a href="index.php" class="logo">🛡️ Admin Panel - DeepLink Pro</a>
                 <div class="nav-links">
+                    <a href="index.php">Dashboard</a>
+                    <a href="cancellations.php">Cancellazioni</a>
                     <span>Admin: <?= htmlspecialchars($_SESSION['admin_name']) ?></span>
                     <a href="../dashboard.php">Dashboard Utente</a>
                     <a href="logout.php">Logout</a>
@@ -219,6 +257,17 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <main class="main">
         <div class="container">
+            <!-- Quick Action: Cancellazioni -->
+            <?php if ($cancellation_stats['pending_cancellations'] > 0): ?>
+            <div class="quick-action-card">
+                <h3 style="margin-bottom: 0.5rem;">⚠️ Attenzione: <?= $cancellation_stats['pending_cancellations'] ?> Cancellazioni in Attesa</h3>
+                <p style="margin-bottom: 1rem; opacity: 0.9;">
+                    Ci sono utenti che hanno richiesto la cancellazione dell'abbonamento
+                </p>
+                <a href="cancellations.php">Visualizza Cancellazioni →</a>
+            </div>
+            <?php endif; ?>
+
             <!-- Statistiche Admin -->
             <div class="admin-stats">
                 <div class="admin-stat-card">
@@ -232,6 +281,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="admin-stat-card">
                     <div class="stat-number"><?= $stats['free_users'] ?></div>
                     <div class="stat-label">Utenti Gratuiti</div>
+                </div>
+                <div class="admin-stat-card cancellation">
+                    <div class="stat-number"><?= $cancellation_stats['pending_cancellations'] ?></div>
+                    <div class="stat-label">Cancellazioni in Attesa</div>
                 </div>
                 <div class="admin-stat-card">
                     <div class="stat-number"><?= $stats['total_deeplinks'] ?></div>
@@ -298,16 +351,22 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <td><?= htmlspecialchars($user['name']) ?></td>
                                     <td><?= htmlspecialchars($user['email']) ?></td>
                                     <td>
-                                        <span class="status-badge status-<?= $user['subscription_status'] ?>">
-                                            <?php
-                                            switch($user['subscription_status']) {
-                                                case 'active': echo 'Premium'; break;
-                                                case 'expired': echo 'Scaduto'; break;
-                                                case 'cancelled': echo 'Cancellato'; break;
-                                                default: echo 'Gratuito';
-                                            }
-                                            ?>
-                                        </span>
+                                        <?php if ($user['cancellation_requested'] == 1 && $user['subscription_status'] == 'active'): ?>
+                                            <span class="status-badge status-cancellation-pending">
+                                                ⚠ Premium (Cancellazione Richiesta)
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="status-badge status-<?= $user['subscription_status'] ?>">
+                                                <?php
+                                                switch($user['subscription_status']) {
+                                                    case 'active': echo 'Premium'; break;
+                                                    case 'expired': echo 'Scaduto'; break;
+                                                    case 'cancelled': echo 'Cancellato'; break;
+                                                    default: echo 'Gratuito';
+                                                }
+                                                ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if ($user['subscription_end']): ?>
                                             <br><small style="color: #666;">
                                                 Scade: <?= date('d/m/Y', strtotime($user['subscription_end'])) ?>
@@ -407,6 +466,23 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </li>
                             <li style="padding: 0.5rem 0;">
                                 <strong>Media click/deeplink:</strong> <?= number_format($stats['avg_clicks_per_deeplink'], 2) ?>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3>Cancellazioni</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
+                                <strong>In attesa:</strong> <?= $cancellation_stats['pending_cancellations'] ?>
+                            </li>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
+                                <strong>Completate:</strong> <?= $cancellation_stats['completed_cancellations'] ?>
+                            </li>
+                            <li style="padding: 0.5rem 0;">
+                                <a href="cancellations.php" style="color: #fd7e14; text-decoration: none;">
+                                    Visualizza dettagli →
+                                </a>
                             </li>
                         </ul>
                     </div>
