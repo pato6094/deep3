@@ -23,6 +23,13 @@ try {
         // Colonna già esistente, ignora l'errore
     }
     
+    // Aggiungi la colonna registration_ip per tracciare l'IP di registrazione
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN registration_ip VARCHAR(45) NULL AFTER email");
+    } catch (PDOException $e) {
+        // Colonna già esistente, ignora l'errore
+    }
+    
     // Crea tabella per il log delle registrazioni IP
     try {
         $pdo->exec("

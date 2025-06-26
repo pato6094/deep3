@@ -43,16 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Log tentativo con email duplicata
                 log_ip_attempt($pdo, $client_ip, 'attempt', 'Email già registrata: ' . $email);
             } else {
-                // Registrazione utente
+                // Registrazione utente CON IP
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (name, email, password, created_at) 
-                    VALUES (:name, :email, :password, NOW())
+                    INSERT INTO users (name, email, registration_ip, password, created_at) 
+                    VALUES (:name, :email, :registration_ip, :password, NOW())
                 ");
                 
                 if ($stmt->execute([
                     ':name' => $name,
                     ':email' => $email,
+                    ':registration_ip' => $client_ip,
                     ':password' => $hashed_password
                 ])) {
                     $user_id = $pdo->lastInsertId();
