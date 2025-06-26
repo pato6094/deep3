@@ -168,31 +168,87 @@ $cancellation_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
         .priority-low {
             border-left: 4px solid #28a745;
         }
+        
+        /* STILI TAB MIGLIORATI */
         .nav-tabs {
             display: flex;
-            gap: 1rem;
+            gap: 0;
             margin-bottom: 2rem;
             border-bottom: 2px solid #eee;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         .nav-tab {
-            padding: 0.75rem 1.5rem;
-            background: none;
+            padding: 1rem 1.5rem;
+            background: rgba(248, 249, 250, 0.9);
             border: none;
-            border-bottom: 2px solid transparent;
+            border-bottom: 3px solid transparent;
             cursor: pointer;
             font-weight: 600;
             color: #666;
             transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            transform: translateY(-2px);
         }
         .nav-tab.active {
+            background: rgba(255, 255, 255, 1);
             color: #dc3545;
             border-bottom-color: #dc3545;
+            box-shadow: 0 -2px 10px rgba(220, 53, 69, 0.2);
         }
+        .nav-tab.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #dc3545, #c82333);
+        }
+        
+        /* CONTENUTO TAB */
         .tab-content {
             display: none;
+            animation: fadeIn 0.3s ease-in-out;
         }
         .tab-content.active {
             display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* MIGLIORAMENTI CARD */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .nav-tabs {
+                flex-direction: column;
+                gap: 0;
+            }
+            .nav-tab {
+                border-bottom: 1px solid #eee;
+                border-radius: 0;
+            }
+            .nav-tab.active {
+                border-bottom-color: #dc3545;
+            }
         }
     </style>
 </head>
