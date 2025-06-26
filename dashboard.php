@@ -57,20 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['url'])) {
                         $stmt->execute([':custom_name' => $custom_name]);
                         if ($stmt->fetch()) {
                             $error = "Il nome personalizzato è già in uso. Scegline un altro.";
-                        } else {
-                            $id = $custom_name; // Usa il nome personalizzato come ID
                         }
                     }
                 }
 
                 if (empty($error)) {
+                    // Se ha un nome personalizzato valido, usa quello come ID
+                    $final_id = ($has_subscription && !empty($custom_name)) ? $custom_name : $id;
+                    
                     $stmt = $pdo->prepare("
                         INSERT INTO deeplinks (id, original_url, deeplink, user_id, title, custom_name, created_at) 
                         VALUES (:id, :original_url, :deeplink, :user_id, :title, :custom_name, NOW())
                     ");
                     
                     if ($stmt->execute([
-                        ':id' => $id,
+                        ':id' => $final_id,
                         ':original_url' => $original_url,
                         ':deeplink' => $deeplink,
                         ':user_id' => $user_id,
@@ -84,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['url'])) {
                         if ($has_subscription && !empty($custom_name)) {
                             $deeplink_url = "$base_url/$custom_name";
                         } else {
-                            $deeplink_url = "$base_url/redirect.php?id=$id";
+                            $deeplink_url = "$base_url/redirect.php?id=$final_id";
                         }
                         
                         $success = "Deeplink creato con successo!";
