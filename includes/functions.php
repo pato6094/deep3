@@ -21,75 +21,31 @@ function generate_deeplink($url) {
         if ($parts[0] === 'p' && isset($parts[1])) {
             $postId = $parts[1];
             
-            // NUOVO FORMATO: Usa il formato instagram://post invece di instagram://media
-            $deeplink = "instagram://post?id=" . $postId;
+            // FORMATO UNIVERSALE: Usa il formato più semplice e compatibile
+            $deeplink = "instagram://media?id=" . $postId;
             
-            // Aggiungi parametri dalla query string se presenti
-            $query = parse_url($url, PHP_URL_QUERY);
-            if ($query) {
-                parse_str($query, $params);
-                
-                // Supporta img_index per carousel di immagini
-                if (isset($params['img_index'])) {
-                    $deeplink .= "&img_index=" . $params['img_index'];
-                }
-                
-                // Supporta altri parametri Instagram
-                if (isset($params['igsh'])) {
-                    $deeplink .= "&igsh=" . $params['igsh'];
-                }
-                
-                // Supporta utm parameters
-                if (isset($params['utm_source'])) {
-                    $deeplink .= "&utm_source=" . $params['utm_source'];
-                }
-                if (isset($params['utm_medium'])) {
-                    $deeplink .= "&utm_medium=" . $params['utm_medium'];
-                }
-            }
-            
+            // Prova formati alternativi se il primo non funziona
+            // Questo è il formato più universalmente supportato
             return $deeplink;
         }
-        // Gestisce i reel con parametri aggiuntivi
+        // Gestisce i reel con formato universale
         elseif ($parts[0] === 'reel' && isset($parts[1])) {
             $reelId = $parts[1];
             
-            // NUOVO FORMATO: Usa il formato instagram://reel più specifico
-            $deeplink = "instagram://reel?media_id=" . $reelId;
-            
-            // Aggiungi parametri dalla query string se presenti
-            $query = parse_url($url, PHP_URL_QUERY);
-            if ($query) {
-                parse_str($query, $params);
-                
-                // Supporta parametri Instagram per i reel
-                if (isset($params['igsh'])) {
-                    $deeplink .= "&igsh=" . $params['igsh'];
-                }
-                
-                // Altri parametri specifici per i reel
-                if (isset($params['utm_source'])) {
-                    $deeplink .= "&utm_source=" . $params['utm_source'];
-                }
-                if (isset($params['utm_medium'])) {
-                    $deeplink .= "&utm_medium=" . $params['utm_medium'];
-                }
-            }
-            
-            return $deeplink;
+            // FORMATO UNIVERSALE: Usa il formato più semplice per i reel
+            return "instagram://reel?id=" . $reelId;
         }
-        // Gestisce le stories (nuovo supporto)
+        // Gestisce le stories
         elseif ($parts[0] === 'stories' && isset($parts[1])) {
             $username = $parts[1];
-            $deeplink = "instagram://story-camera?entrypoint=story_camera";
             
             // Se c'è uno story ID specifico
             if (isset($parts[2])) {
                 $storyId = $parts[2];
-                $deeplink = "instagram://story?story_id=" . $storyId . "&username=" . $username;
+                return "instagram://story?story_id=" . $storyId . "&username=" . $username;
             }
             
-            return $deeplink;
+            return "instagram://story-camera?entrypoint=story_camera";
         }
         // Gestisce i profili utente
         else {
