@@ -17,25 +17,27 @@ function generate_deeplink($url) {
         $path = trim(parse_url($url, PHP_URL_PATH), '/');
         $parts = explode('/', $path);
         
-        // Gestisce i post con parametri aggiuntivi come img_index
+        // 📸 GESTIONE POST INSTAGRAM - Supporto generico per /p/
         if ($parts[0] === 'p' && isset($parts[1])) {
             $postId = $parts[1];
             
-            // FORMATO UNIVERSALE: Usa il formato più semplice e compatibile
-            $deeplink = "instagram://media?id=" . $postId;
+            // Rimuove eventuali parametri dall'ID del post (come ?img_index=1)
+            $postId = preg_replace('/[^a-zA-Z0-9_-].*$/', '', $postId);
             
-            // Prova formati alternativi se il primo non funziona
-            // Questo è il formato più universalmente supportato
-            return $deeplink;
+            // FORMATO UNIVERSALE: Il più compatibile con tutte le versioni di Instagram
+            return "instagram://media?id=" . $postId;
         }
-        // Gestisce i reel con formato universale
+        // 🎬 GESTIONE REEL INSTAGRAM - Supporto generico per /reel/
         elseif ($parts[0] === 'reel' && isset($parts[1])) {
             $reelId = $parts[1];
             
-            // FORMATO UNIVERSALE: Usa il formato più semplice per i reel
+            // Rimuove eventuali parametri dall'ID del reel (come ?igsh=...)
+            $reelId = preg_replace('/[^a-zA-Z0-9_-].*$/', '', $reelId);
+            
+            // FORMATO UNIVERSALE: Il più compatibile per i reel
             return "instagram://reel?id=" . $reelId;
         }
-        // Gestisce le stories
+        // 📺 GESTIONE STORIES INSTAGRAM
         elseif ($parts[0] === 'stories' && isset($parts[1])) {
             $username = $parts[1];
             
@@ -47,7 +49,7 @@ function generate_deeplink($url) {
             
             return "instagram://story-camera?entrypoint=story_camera";
         }
-        // Gestisce i profili utente
+        // 👤 GESTIONE PROFILI UTENTE INSTAGRAM
         else {
             $username = $parts[0];
             return "instagram://user?username=" . $username;
