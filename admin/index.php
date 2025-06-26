@@ -79,7 +79,7 @@ $where_conditions = [];
 $params = [];
 
 if (!empty($search)) {
-    $where_conditions[] = "(u.name LIKE :search OR u.email LIKE :search)";
+    $where_conditions[] = "(u.name LIKE :search OR u.email LIKE :search OR u.registration_ip LIKE :search)";
     $params[':search'] = "%$search%";
 }
 
@@ -96,7 +96,7 @@ $count_stmt->execute($params);
 $total_users = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
 $total_pages = max(1, ceil($total_users / $per_page));
 
-// Recupera utenti
+// Recupera utenti CON IP di registrazione
 $query = "
     SELECT u.*, 
            COUNT(d.id) AS total_deeplinks,
@@ -115,8 +115,15 @@ foreach ($params as $key => $value) {
 }
 $stmt->bindValue(':per_page', $per_page, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-$stmt->execute();
-$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+try {
+    $stmt->execute();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Errore query utenti: " . $e->getMessage());
+    $users = [];
+    $error = "Errore nel caricamento degli utenti.";
+}
 
 // Statistiche cancellazioni per il widget
 $cancellation_stats_stmt = $pdo->query("
@@ -512,11 +519,13 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
             border-radius: 16px;
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-x: auto;
         }
 
         .table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 1000px;
         }
 
         .table th {
@@ -673,6 +682,22 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
             font-size: 0.75rem;
         }
 
+        /* IP ADDRESS STYLING */
+        .ip-address {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.2);
+        }
+
+        .ip-unknown {
+            color: rgba(255, 255, 255, 0.4);
+            font-style: italic;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 1024px) {
             .sidebar {
@@ -724,7 +749,7 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
             }
 
             .table {
-                min-width: 600px;
+                min-width: 800px;
             }
 
             .user-actions {
@@ -975,7 +1000,7 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
 
                 <!-- Filters -->
                 <form method="GET" class="filters">
-                    <input type="text" name="search" placeholder="Cerca per nome o email..." 
+                    <input type="text" name="search" placeholder="Cerca per nome, email o IP..." 
                            value="<?= htmlspecialchars($search) ?>" class="filter-input">
                     
                     <select name="filter" class="filter-select">
@@ -996,6 +1021,7 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
                             <tr>
                                 <th>Utente</th>
                                 <th>Piano</th>
+                                <th>IP Registrazione</th>
                                 <th>Deeplinks</th>
                                 <th>Click</th>
                                 <th>Registrato</th>
@@ -1041,6 +1067,17 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
                                         <?php endif; ?>
                                     </td>
                                     <td>
+                                        <?php if (!empty($user['registration_ip'])): ?>
+                                            <span class="ip-address" title="IP di registrazione">
+                                                <?= htmlspecialchars($user['registration_ip']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="ip-address ip-unknown" title="IP non disponibile">
+                                                Non disponibile
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
                                         <div style="font-weight: 600; color: #ffffff;">
                                             <?= number_format($user['total_deeplinks']) ?>
                                         </div>
@@ -1082,7 +1119,7 @@ $cancellation_stats = $cancellation_stats_stmt->fetch(PDO::FETCH_ASSOC);
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 3rem;">
+                                    <td colspan="7" style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 3rem;">
                                         <div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
                                         <div>Nessun utente trovato</div>
                                     </td>
