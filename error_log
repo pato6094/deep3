@@ -1,0 +1,20 @@
+[25-Jun-2025 23:16:50 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'canaleyout' for key 'PRIMARY' in /home/buonafor/public_html/deep3-main/dashboard.php:65
+Stack trace:
+#0 /home/buonafor/public_html/deep3-main/dashboard.php(65): PDOStatement->execute()
+#1 {main}
+  thrown in /home/buonafor/public_html/deep3-main/dashboard.php on line 65
+[25-Jun-2025 23:17:34 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'canaleyout' for key 'PRIMARY' in /home/buonafor/public_html/deep3-main/dashboard.php:68
+Stack trace:
+#0 /home/buonafor/public_html/deep3-main/dashboard.php(68): PDOStatement->execute()
+#1 {main}
+  thrown in /home/buonafor/public_html/deep3-main/dashboard.php on line 68
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 403
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 403
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 490
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 490
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 490
+[25-Jun-2025 23:19:29 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 490
+[25-Jun-2025 23:21:26 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 491
+[25-Jun-2025 23:21:26 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 491
+[25-Jun-2025 23:21:26 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 491
+[25-Jun-2025 23:21:26 UTC] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/buonafor/public_html/deep3-main/dashboard.php on line 491
