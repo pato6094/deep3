@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../includes/functions.php';
+require_once '../config/ip_restrictions.php';
 
 $error = '';
 $success = '';
@@ -11,38 +12,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     
-    // Validazione
-    if (empty($name) || empty($email) || empty($password)) {
-        $error = 'Tutti i campi sono obbligatori.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Email non valida.';
-    } elseif (strlen($password) < 6) {
-        $error = 'La password deve essere di almeno 6 caratteri.';
-    } elseif ($password !== $confirm_password) {
-        $error = 'Le password non coincidono.';
-    } else {
-        // Verifica se l'email esiste già
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = :email");
-        $stmt->execute([':email' => $email]);
+    // Ottieni IP del client
+    $client_ip = get_client_ip();
+    
+    // Verifica restrizioni IP PRIMA di qualsiasi altra validazione
+    $ip_check = check_ip_registration_limits($pdo, $client_ip);
+    
+    if (!$ip_check['allowed']) {
+        $error = $ip_check['message'];
         
-        if ($stmt->fetch()) {
-            $error = 'Email già registrata.';
+        // Log del tentativo bloccato
+        log_ip_attempt($pdo, $client_ip, 'blocked', $ip_check['reason']);
+    } else {
+        // Validazione normale
+        if (empty($name) || empty($email) || empty($password)) {
+            $error = 'Tutti i campi sono obbligatori.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Email non valida.';
+        } elseif (strlen($password) < 6) {
+            $error = 'La password deve essere di almeno 6 caratteri.';
+        } elseif ($password !== $confirm_password) {
+            $error = 'Le password non coincidono.';
         } else {
-            // Registrazione utente
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("
-                INSERT INTO users (name, email, password, created_at) 
-                VALUES (:name, :email, :password, NOW())
-            ");
+            // Verifica se l'email esiste già
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = :email");
+            $stmt->execute([':email' => $email]);
             
-            if ($stmt->execute([
-                ':name' => $name,
-                ':email' => $email,
-                ':password' => $hashed_password
-            ])) {
-                $success = 'Registrazione completata! Ora puoi effettuare il login.';
+            if ($stmt->fetch()) {
+                $error = 'Email già registrata.';
+                // Log tentativo con email duplicata
+                log_ip_attempt($pdo, $client_ip, 'attempt', 'Email già registrata: ' . $email);
             } else {
-                $error = 'Errore durante la registrazione.';
+                // Registrazione utente
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("
+                    INSERT INTO users (name, email, password, created_at) 
+                    VALUES (:name, :email, :password, NOW())
+                ");
+                
+                if ($stmt->execute([
+                    ':name' => $name,
+                    ':email' => $email,
+                    ':password' => $hashed_password
+                ])) {
+                    $user_id = $pdo->lastInsertId();
+                    
+                    // Log registrazione completata con successo
+                    log_ip_registration($pdo, $client_ip, $user_id);
+                    
+                    $success = 'Registrazione completata! Ora puoi effettuare il login.';
+                } else {
+                    $error = 'Errore durante la registrazione.';
+                    log_ip_attempt($pdo, $client_ip, 'attempt', 'Errore database durante registrazione');
+                }
             }
         }
     }
@@ -59,6 +81,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .ip-info {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .ip-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+        }
+        
+        .rate-limit-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #93c5fd;
+        }
+    </style>
 </head>
 <body>
     <header class="header">
@@ -87,6 +136,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <?php if ($error): ?>
                         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+                        
+                        <?php if (strpos($error, 'Troppe registrazioni') !== false): ?>
+                            <div class="ip-info ip-warning">
+                                <strong>🛡️ Protezione Anti-Spam Attiva</strong><br>
+                                Per proteggere il nostro servizio, limitiamo il numero di registrazioni per indirizzo IP.<br>
+                                <small>Se hai bisogno di registrare più account, contatta il supporto.</small>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                     
                     <?php if ($success): ?>
@@ -127,6 +184,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             🚀 Registrati
                         </button>
                     </form>
+                    
+                    <!-- Informazioni sui limiti di registrazione -->
+                    <div class="rate-limit-info">
+                        <strong>🛡️ Protezione Anti-Spam:</strong> Per la sicurezza del servizio, limitiamo le registrazioni a 
+                        <?= $IP_RESTRICTION_CONFIG['max_registrations_per_hour'] ?> all'ora e 
+                        <?= $IP_RESTRICTION_CONFIG['max_registrations_per_day'] ?> al giorno per IP.
+                    </div>
                     
                     <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
                         <p style="color: rgba(255, 255, 255, 0.7);">

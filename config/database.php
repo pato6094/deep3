@@ -23,6 +23,27 @@ try {
         // Colonna già esistente, ignora l'errore
     }
     
+    // Crea tabella per il log delle registrazioni IP
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS ip_registration_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                action ENUM('registration', 'blocked', 'attempt') NOT NULL,
+                details TEXT,
+                user_id INT NULL,
+                user_agent TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ip_created (ip_address, created_at),
+                INDEX idx_action_created (action, created_at),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        ");
+    } catch (PDOException $e) {
+        // Tabella già esistente o errore, ignora
+        error_log("Errore creazione tabella ip_registration_log: " . $e->getMessage());
+    }
+    
 } catch (PDOException $e) {
     die("Errore connessione DB: " . $e->getMessage());
 }
